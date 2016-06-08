@@ -21,7 +21,7 @@ extern "C" {
 //  @interface
 //  Create a new zecho
 ZLOG_EXPORT zecho_t *
-    zecho_new (void);
+    zecho_new (zyre_t *node);
 
 //  Destroy the zecho
 ZLOG_EXPORT void

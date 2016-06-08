@@ -85,7 +85,7 @@ callcheck: src/zlog_selftest
 
 # Run the selftest binary under gdb for debugging
 debug: src/zlog_selftest
-	$(LIBTOOL) --mode=execute gdb -q \
+	$(LIBTOOL) --mode=execute ddd -q \
 		$(builddir)/src/zlog_selftest
 
 # Run the selftest binary with verbose switch for tracing
