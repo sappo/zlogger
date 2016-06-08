@@ -1,0 +1,16 @@
+<project
+    name = "zlogger"
+    prefix = "zlog"
+    description = "an open-source framework for causality logs"
+    script = "zproject.gsl"
+    email = "bulb"
+    url = "http://github.com/zeromq/zlogger"
+    >
+
+    <include filename = "license.xml" />
+    <version major = "0" minor = "1" patch = "0" />
+    <use project = "zyre" />
+
+    <class name = "zecho">Implements the echo algorithms</class>
+
+</project>

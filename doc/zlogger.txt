@@ -1,0 +1,25 @@
+Name(7)
+=======
+
+
+NAME
+----
+zlogger - an open-source framework for causality logs
+
+
+SYNOPSIS
+--------
+----
+#include <zlogger.h>
+
+cc ['flags'] 'files' -lzlog ['libraries']
+----
+
+
+DESCRIPTION
+-----------
+
+Classes
+~~~~~~~
+
+Something.
