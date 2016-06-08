@@ -190,10 +190,18 @@ zecho_test (bool verbose)
     //  Join topology
     zyre_join (node1, "GLOBAL");
     zyre_join (node2, "GLOBAL");
-    zyre_join (node3, "GLOBAL");
+    zyre_join (node2, "LOCAL");
+    zyre_join (node3, "LOCAL");
 
     //  Give time for them to interconnect
     zclock_sleep (500);
+
+    zyre_dump (node1);
+    zclock_sleep (250);
+    zyre_dump (node2);
+    zclock_sleep (250);
+    zyre_dump (node3);
+    zclock_sleep (250);
 
     zecho_init (echo1);
 
@@ -204,25 +212,21 @@ zecho_test (bool verbose)
         event = zyre_event_new (node2);
     } while (!streq (zyre_event_type (event), "WHISPER"));
     zecho_recv (echo2, event);
-    zecho_print (echo2);
 
     do {
         event = zyre_event_new (node3);
     } while (!streq (zyre_event_type (event), "WHISPER"));
     zecho_recv (echo3, event);
-    zecho_print (echo3);
 
     do {
         event = zyre_event_new (node2);
     } while (!streq (zyre_event_type (event), "WHISPER"));
     zecho_recv (echo2, event);
-    zecho_print (echo2);
 
     do {
         event = zyre_event_new (node3);
     } while (!streq (zyre_event_type (event), "WHISPER"));
     zecho_recv (echo3, event);
-    zecho_print (echo3);
 
     do {
         event = zyre_event_new (node1);
