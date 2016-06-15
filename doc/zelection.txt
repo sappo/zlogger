@@ -1,0 +1,40 @@
+zelection(3)
+============
+
+NAME
+----
+zelection - class description
+
+SYNOPSIS
+--------
+----
+//  Create a new zelection
+ZLOG_EXPORT zelection_t *
+    zelection_new (void);
+
+//  Destroy the zelection
+ZLOG_EXPORT void
+    zelection_destroy (zelection_t **self_p);
+
+//  Self test of this class
+ZLOG_EXPORT void
+    zelection_test (bool verbose);
+
+----
+
+DESCRIPTION
+-----------
+
+zelection - 
+
+Please add @discuss section in ../src/zelection.c.
+
+EXAMPLE
+-------
+.From zelection_test method
+----
+//  Simple create/destroy test
+zelection_t *self = zelection_new ();
+assert (self);
+zelection_destroy (&self);
+----

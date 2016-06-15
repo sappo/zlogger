@@ -1,0 +1,40 @@
+zvector(3)
+==========
+
+NAME
+----
+zvector.txt - Implements a dynamic vector clock
+
+SYNOPSIS
+--------
+----
+//  Create a new zvector
+ZLOG_EXPORT zvector_t *
+    zvector_new (void);
+
+//  Destroy the zvector
+ZLOG_EXPORT void
+    zvector_destroy (zvector_t **self_p);
+
+//  Self test of this class
+ZLOG_EXPORT void
+    zvector_test (bool verbose);
+
+----
+
+DESCRIPTION
+-----------
+
+zvector - Implements a dynamic vector clock
+
+Please add @discuss section in ../src/zvector.c.
+
+EXAMPLE
+-------
+.From zvector_test method
+----
+//  Simple create/destroy test
+zvector_t *self = zvector_new ();
+assert (self);
+zvector_destroy (&self);
+----

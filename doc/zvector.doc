@@ -1,0 +1,28 @@
+####  - Implements a dynamic vector clock
+
+zvector - Implements a dynamic vector clock
+
+Please add @discuss section in ../src/zvector.c.
+
+This is the class interface:
+
+    //  Create a new zvector
+    ZLOG_EXPORT zvector_t *
+        zvector_new (void);
+    
+    //  Destroy the zvector
+    ZLOG_EXPORT void
+        zvector_destroy (zvector_t **self_p);
+    
+    //  Self test of this class
+    ZLOG_EXPORT void
+        zvector_test (bool verbose);
+    
+
+This is the class self test code:
+
+    //  Simple create/destroy test
+    zvector_t *self = zvector_new ();
+    assert (self);
+    zvector_destroy (&self);
+

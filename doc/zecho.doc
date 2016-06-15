@@ -1,0 +1,120 @@
+####  - Implements the echo algorithms
+
+zecho - Implements the echo algorithms
+
+Please add @discuss section in ../src/zecho.c.
+
+This is the class interface:
+
+    //  Create a new zecho
+    ZLOG_EXPORT zecho_t *
+        zecho_new (zyre_t *node);
+    
+    //  Destroy the zecho
+    ZLOG_EXPORT void
+        zecho_destroy (zecho_t **self_p);
+    
+    //  Self test of this class
+    ZLOG_EXPORT void
+        zecho_test (bool verbose);
+    
+
+This is the class self test code:
+
+    int rc;
+    //  Init zyre nodes
+    zyre_t *node1 = zyre_new ("node1");
+    assert (node1);
+    //  Set inproc endpoint for this node
+    rc = zyre_set_endpoint (node1, "inproc://zyre-node1");
+    assert (rc == 0);
+    //  Set up gossip network for this node
+    zyre_gossip_bind (node1, "inproc://gossip-hub");
+    rc = zyre_start (node1);
+    assert (rc == 0);
+    
+    zyre_t *node2 = zyre_new ("node2");
+    assert (node2);
+    //  Set inproc endpoint for this node
+    rc = zyre_set_endpoint (node2, "inproc://zyre-node2");
+    assert (rc == 0);
+    //  Set up gossip network for this node
+    zyre_gossip_connect (node2, "inproc://gossip-hub");
+    rc = zyre_start (node2);
+    assert (rc == 0);
+    
+    zyre_t *node3 = zyre_new ("node3");
+    assert (node3);
+    //  Set inproc endpoint for this node
+    rc = zyre_set_endpoint (node3, "inproc://zyre-node3");
+    assert (rc == 0);
+    //  Set up gossip network for this node
+    zyre_gossip_connect (node3, "inproc://gossip-hub");
+    rc = zyre_start (node3);
+    assert (rc == 0);
+    
+    //  Setup echo
+    zecho_t *echo1 = zecho_new (node1);
+    zecho_t *echo2 = zecho_new (node2);
+    zecho_t *echo3 = zecho_new (node3);
+    
+    //  Join topology
+    zyre_join (node1, "GLOBAL");
+    zyre_join (node2, "GLOBAL");
+    zyre_join (node2, "LOCAL");
+    zyre_join (node3, "LOCAL");
+    
+    //  Give time for them to interconnect
+    zclock_sleep (500);
+    
+    zyre_dump (node1);
+    zclock_sleep (250);
+    zyre_dump (node2);
+    zclock_sleep (250);
+    zyre_dump (node3);
+    zclock_sleep (250);
+    
+    zecho_init (echo1);
+    
+    zclock_sleep (500);
+    
+    zyre_event_t *event;
+    do {
+        event = zyre_event_new (node2);
+    } while (!streq (zyre_event_type (event), "WHISPER"));
+    zecho_recv (echo2, event);
+    
+    do {
+        event = zyre_event_new (node3);
+    } while (!streq (zyre_event_type (event), "WHISPER"));
+    zecho_recv (echo3, event);
+    
+    do {
+        event = zyre_event_new (node2);
+    } while (!streq (zyre_event_type (event), "WHISPER"));
+    zecho_recv (echo2, event);
+    
+    do {
+        event = zyre_event_new (node3);
+    } while (!streq (zyre_event_type (event), "WHISPER"));
+    zecho_recv (echo3, event);
+    
+    do {
+        event = zyre_event_new (node1);
+    } while (!streq (zyre_event_type (event), "WHISPER"));
+    zecho_recv (echo1, event);
+    
+    do {
+        event = zyre_event_new (node1);
+    } while (!streq (zyre_event_type (event), "WHISPER"));
+    
+    zecho_recv (echo1, event);
+    zecho_print (echo1);
+    zecho_print (echo2);
+    zecho_print (echo3);
+    
+    //  Cleanup
+    zecho_destroy (&echo1);
+    zecho_destroy (&echo2);
+    zecho_destroy (&echo3);
+
