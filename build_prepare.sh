@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-BUILD_PREFIX=/users/k_sapper/.install
+BUILD_PREFIX=$HOME/.install
 
 CONFIG_OPTS=()
 CONFIG_OPTS+=("CFLAGS=-I${BUILD_PREFIX}/include")

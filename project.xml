@@ -12,5 +12,6 @@
     <use project = "zyre" />
 
     <class name = "zecho">Implements the echo algorithms</class>
+    <class name = "zelection"></class>
 
 </project>
