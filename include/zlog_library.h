@@ -2,8 +2,7 @@
     zlogger - generated layer of public API
 
     Copyright (c) the Contributors as noted in the AUTHORS file.       
-    This file is part of CZMQ, the high-level C binding for 0MQ:       
-    http://czmq.zeromq.org.                                            
+    This file is part of zlogger.                                      
                                                                        
     This Source Code Form is subject to the terms of the Mozilla Public
     License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -62,12 +61,18 @@
 #ifdef ZLOG_BUILD_DRAFT_API
 typedef struct _zecho_t zecho_t;
 #define ZECHO_T_DEFINED
+typedef struct _zvector_t zvector_t;
+#define ZVECTOR_T_DEFINED
+typedef struct _zelection_t zelection_t;
+#define ZELECTION_T_DEFINED
 #endif // ZLOG_BUILD_DRAFT_API
 
 
 //  Public classes, each with its own header file
 #ifdef ZLOG_BUILD_DRAFT_API
 #include "zecho.h"
+#include "zvector.h"
+#include "zelection.h"
 #endif // ZLOG_BUILD_DRAFT_API
 
 #endif

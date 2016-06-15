@@ -5,8 +5,7 @@
 
     -------------------------------------------------------------------------
     Copyright (c) the Contributors as noted in the AUTHORS file.       
-    This file is part of CZMQ, the high-level C binding for 0MQ:       
-    http://czmq.zeromq.org.                                            
+    This file is part of zlogger.                                      
                                                                        
     This Source Code Form is subject to the terms of the Mozilla Public
     License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -30,6 +29,8 @@ static test_item_t
 all_tests [] = {
 #ifdef ZLOG_BUILD_DRAFT_API
     { "zecho", zecho_test },
+    { "zvector", zvector_test },
+    { "zelection", zelection_test },
 #endif // ZLOG_BUILD_DRAFT_API
     {0, 0}          //  Sentinel
 };
@@ -88,7 +89,7 @@ main (int argc, char **argv)
         else
         if (streq (argv [argn], "--number")
         ||  streq (argv [argn], "-n")) {
-            puts ("1");
+            puts ("3");
             return 0;
         }
         else
@@ -96,6 +97,8 @@ main (int argc, char **argv)
         ||  streq (argv [argn], "-l")) {
             puts ("Available tests:");
             puts ("    zecho");
+            puts ("    zvector");
+            puts ("    zelection");
             return 0;
         }
         else

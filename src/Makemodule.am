@@ -18,7 +18,9 @@ include_HEADERS = \
 
 if ENABLE_DRAFTS
 include_HEADERS += \
-    include/zecho.h
+    include/zecho.h \
+    include/zvector.h \
+    include/zelection.h
 
 endif
 src_libzlog_la_SOURCES = \
@@ -26,7 +28,9 @@ src_libzlog_la_SOURCES = \
 
 if ENABLE_DRAFTS
 src_libzlog_la_SOURCES += \
-    src/zecho.c
+    src/zecho.c \
+    src/zvector.c \
+    src/zelection.c
 
 endif
 
@@ -85,7 +89,7 @@ callcheck: src/zlog_selftest
 
 # Run the selftest binary under gdb for debugging
 debug: src/zlog_selftest
-	$(LIBTOOL) --mode=execute ddd -q \
+	$(LIBTOOL) --mode=execute gdb -q \
 		$(builddir)/src/zlog_selftest
 
 # Run the selftest binary with verbose switch for tracing

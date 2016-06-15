@@ -117,6 +117,8 @@ set (zlog_headers
 IF (ENABLE_DRAFTS)
     list(APPEND zlog_headers
         include/zecho.h
+        include/zvector.h
+        include/zelection.h
     )
 ENDIF (ENABLE_DRAFTS)
 
@@ -133,6 +135,8 @@ set (zlog_sources
 IF (ENABLE_DRAFTS)
     list (APPEND zlog_sources
         src/zecho.c
+        src/zvector.c
+        src/zelection.c
     )
 ENDIF (ENABLE_DRAFTS)
 
@@ -212,6 +216,8 @@ set(TEST_CLASSES
 IF (ENABLE_DRAFTS)
     list (APPEND TEST_CLASSES
     zecho
+    zvector
+    zelection
     )
 ENDIF (ENABLE_DRAFTS)
 

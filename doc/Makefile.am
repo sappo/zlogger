@@ -3,7 +3,7 @@
 #  Read the zproject/README.md for information about making permanent changes. #
 ################################################################################
 MAN1 =
-MAN3 = zecho.3
+MAN3 = zecho.3 zvector.3 zelection.3
 MAN7 = zlogger.7
 MAN_DOC = $(MAN1) $(MAN3) $(MAN7)
 
@@ -36,9 +36,15 @@ SUFFIXES=.txt .xml .1 .3 .7
 
 zecho.txt:
 	./mkman $@
+zvector.txt:
+	./mkman $@
+zelection.txt:
+	./mkman $@
 clean:
 	rm -f *.1 *.3 *.7
 	./mkman zecho
+	./mkman zvector
+	./mkman zelection
 
 endif
 ################################################################################
