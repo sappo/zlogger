@@ -57,7 +57,6 @@ zecho_destroy (zecho_t **self_p)
         zecho_t *self = *self_p;
         //  Free class properties here
         zstr_free (&self->father);
-        zyre_destroy (&self->node);
         //  Free object itself
         free (self);
         *self_p = NULL;
@@ -70,35 +69,14 @@ zecho_destroy (zecho_t **self_p)
 
 void
 zecho_init (zecho_t *self) {
-    self->father = strdup("init");
+    self->father = strdup("initiator");
 
-    zlist_t *neighbors = zyre_peers (self->node);
-    char *neighbor = (char *) zlist_first (neighbors);
-    while (neighbor) {
-        if (!streq (neighbor, self->father)) {
-            //  Send token to neighbor
-            zmsg_t *token = zmsg_new ();
-            zmsg_addstr (token, "tok");
-            zyre_whisper (self->node, neighbor, &token);
-        }
-        //  Get next item in list
-        neighbor = (char *) zlist_next (neighbors);
-    }
-    zlist_destroy (&neighbors);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Handle a received echo token
-
-void
-zecho_recv (zecho_t *self, zyre_event_t *token)
-{
-    zlist_t *neighbors = zyre_peers (self->node);
-
-    self->recv_msg++;
-    if (!self->father) {
-        self->father = strdup (zyre_event_peer_uuid (token));
+    zlist_t *groups = zyre_own_groups (self->node);
+    const char *group = (const char *) zlist_first (groups);
+    while (group) {
+        printf("Send to group: %s\n", group);
+        zlist_t *neighbors = zyre_peers_by_group (self->node, group);
+        printf("Neighbors in group: %lu\n", zlist_size (neighbors));
         char *neighbor = (char *) zlist_first (neighbors);
         while (neighbor) {
             if (!streq (neighbor, self->father)) {
@@ -110,10 +88,70 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
             //  Get next item in list
             neighbor = (char *) zlist_next (neighbors);
         }
+        zlist_destroy (&neighbors);
+
+        group = (const char *) zlist_next (groups);
+    }
+    zlist_destroy (&groups);
+}
+
+
+//  --------------------------------------------------------------------------
+
+static unsigned long
+s_zecho_neighbor_count (zecho_t *self)
+{
+    unsigned long neighbors_count = 0;
+    zlist_t *groups = zyre_own_groups (self->node);
+    const char *group = (const char *) zlist_first (groups);
+    while (group) {
+        zlist_t *neighbors = zyre_peers_by_group (self->node, group);
+        neighbors_count += zlist_size (neighbors);
+
+        group = (const char *) zlist_next (groups);
+        zlist_destroy (&neighbors);
+    }
+    zlist_destroy (&groups);
+    return neighbors_count;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Handle a received echo token
+
+void
+zecho_recv (zecho_t *self, zyre_event_t *token)
+{
+    self->recv_msg++;
+
+    if (!self->father) {
+        self->father = strdup (zyre_event_peer_uuid (token));
+        //  Forward token to all neighbors but father
+        zlist_t *groups = zyre_own_groups (self->node);
+        const char *group = (const char *) zlist_first (groups);
+        while (group) {
+            zlist_t *neighbors = zyre_peers_by_group (self->node, group);
+            char *neighbor = (char *) zlist_first (neighbors);
+            while (neighbor) {
+                if (!streq (neighbor, self->father)) {
+                    //  Send token to neighbor
+                    zmsg_t *token = zmsg_new ();
+                    zmsg_addstr (token, "tok");
+                    zyre_whisper (self->node, neighbor, &token);
+                    printf ("Forward to %s in group %s\n", neighbor, group);
+                }
+                //  Get next item in list
+                neighbor = (char *) zlist_next (neighbors);
+            }
+
+            group = (const char *) zlist_next (groups);
+            zlist_destroy (&neighbors);
+        }
+        zlist_destroy (&groups);
     }
 
-    if (self->recv_msg == zlist_size (neighbors)) {
-        if (streq (self->father, "init")) {
+    if (self->recv_msg == s_zecho_neighbor_count(self)) {
+        if (streq (self->father, "initiator")) {
             //  Decide
             printf("Decide\n");
         }
@@ -125,7 +163,8 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
             printf("Send to father\n");
         }
     }
-    zlist_destroy (&neighbors);
+
+    zyre_event_destroy (&token);
 }
 
 
@@ -197,47 +236,54 @@ zecho_test (bool verbose)
     zclock_sleep (500);
 
     zyre_dump (node1);
-    zclock_sleep (250);
+    zclock_sleep (150);
     zyre_dump (node2);
-    zclock_sleep (250);
+    zclock_sleep (150);
     zyre_dump (node3);
-    zclock_sleep (250);
+    zclock_sleep (150);
 
     zecho_init (echo1);
-
     zclock_sleep (500);
 
-    zyre_event_t *event;
+    zyre_event_t *event = NULL;
+
     do {
         event = zyre_event_new (node2);
-    } while (!streq (zyre_event_type (event), "WHISPER"));
+        if (!streq (zyre_event_type (event), "WHISPER"))
+            zyre_event_destroy (&event);
+        else
+            break;
+    } while (1);
     zecho_recv (echo2, event);
 
     do {
         event = zyre_event_new (node3);
-    } while (!streq (zyre_event_type (event), "WHISPER"));
+        if (!streq (zyre_event_type (event), "WHISPER"))
+            zyre_event_destroy (&event);
+        else
+            break;
+    } while (1);
     zecho_recv (echo3, event);
 
     do {
         event = zyre_event_new (node2);
-    } while (!streq (zyre_event_type (event), "WHISPER"));
+        if (!streq (zyre_event_type (event), "WHISPER"))
+            zyre_event_destroy (&event);
+        else
+            break;
+    } while (1);
     zecho_recv (echo2, event);
 
     do {
-        event = zyre_event_new (node3);
-    } while (!streq (zyre_event_type (event), "WHISPER"));
-    zecho_recv (echo3, event);
-
-    do {
         event = zyre_event_new (node1);
-    } while (!streq (zyre_event_type (event), "WHISPER"));
+        if (!streq (zyre_event_type (event), "WHISPER"))
+            zyre_event_destroy (&event);
+        else
+            break;
+    } while (1);
     zecho_recv (echo1, event);
 
-    do {
-        event = zyre_event_new (node1);
-    } while (!streq (zyre_event_type (event), "WHISPER"));
-
-    zecho_recv (echo1, event);
+    // Print result
     zecho_print (echo1);
     zecho_print (echo2);
     zecho_print (echo3);
@@ -246,6 +292,15 @@ zecho_test (bool verbose)
     zecho_destroy (&echo1);
     zecho_destroy (&echo2);
     zecho_destroy (&echo3);
+
+    zyre_stop (node1);
+    zyre_stop (node2);
+    zyre_stop (node3);
+
+    zyre_destroy (&node1);
+    zyre_destroy (&node2);
+    zyre_destroy (&node3);
+
     //  @end
     printf ("OK\n");
 }
