@@ -25,9 +25,9 @@
 **<a href="#toc3-150">API Summary</a>**
 *  <a href="#toc4-155"> - Implements the echo algorithms</a>
 
-**<a href="#toc3-277">Hints to Contributors</a>**
+**<a href="#toc3-301">Hints to Contributors</a>**
 
-**<a href="#toc3-288">This Document</a>**
+**<a href="#toc3-312">This Document</a>**
 
 <A name="toc2-13" title="Overview" />
 ## Overview
@@ -188,6 +188,14 @@ This is the class interface:
     ZLOG_EXPORT void
         zecho_destroy (zecho_t **self_p);
     
+    //  Initiate the echo algorithm
+    ZLOG_EXPORT void
+        zecho_init (zecho_t *self);
+    
+    //  Handle a received echo token
+    ZLOG_EXPORT void
+        zecho_recv (zecho_t *self, zyre_event_t *token);
+    
     //  Self test of this class
     ZLOG_EXPORT void
         zecho_test (bool verbose);
@@ -242,47 +250,54 @@ This is the class self test code:
     zclock_sleep (500);
     
     zyre_dump (node1);
-    zclock_sleep (250);
+    zclock_sleep (150);
     zyre_dump (node2);
-    zclock_sleep (250);
+    zclock_sleep (150);
     zyre_dump (node3);
-    zclock_sleep (250);
+    zclock_sleep (150);
     
     zecho_init (echo1);
-    
     zclock_sleep (500);
     
-    zyre_event_t *event;
+    zyre_event_t *event = NULL;
+    
     do {
         event = zyre_event_new (node2);
-    } while (!streq (zyre_event_type (event), "WHISPER"));
+        if (!streq (zyre_event_type (event), "WHISPER"))
+            zyre_event_destroy (&event);
+        else
+            break;
+    } while (1);
     zecho_recv (echo2, event);
     
     do {
         event = zyre_event_new (node3);
-    } while (!streq (zyre_event_type (event), "WHISPER"));
+        if (!streq (zyre_event_type (event), "WHISPER"))
+            zyre_event_destroy (&event);
+        else
+            break;
+    } while (1);
     zecho_recv (echo3, event);
     
     do {
         event = zyre_event_new (node2);
-    } while (!streq (zyre_event_type (event), "WHISPER"));
+        if (!streq (zyre_event_type (event), "WHISPER"))
+            zyre_event_destroy (&event);
+        else
+            break;
+    } while (1);
     zecho_recv (echo2, event);
     
     do {
-        event = zyre_event_new (node3);
-    } while (!streq (zyre_event_type (event), "WHISPER"));
-    zecho_recv (echo3, event);
-    
-    do {
         event = zyre_event_new (node1);
-    } while (!streq (zyre_event_type (event), "WHISPER"));
+        if (!streq (zyre_event_type (event), "WHISPER"))
+            zyre_event_destroy (&event);
+        else
+            break;
+    } while (1);
     zecho_recv (echo1, event);
     
-    do {
-        event = zyre_event_new (node1);
-    } while (!streq (zyre_event_type (event), "WHISPER"));
-    
-    zecho_recv (echo1, event);
+    // Print result
     zecho_print (echo1);
     zecho_print (echo2);
     zecho_print (echo3);
@@ -291,9 +306,18 @@ This is the class self test code:
     zecho_destroy (&echo1);
     zecho_destroy (&echo2);
     zecho_destroy (&echo3);
+    
+    zyre_stop (node1);
+    zyre_stop (node2);
+    zyre_stop (node3);
+    
+    zyre_destroy (&node1);
+    zyre_destroy (&node2);
+    zyre_destroy (&node3);
+    
 
 
-<A name="toc3-277" title="Hints to Contributors" />
+<A name="toc3-301" title="Hints to Contributors" />
 ### Hints to Contributors
 
 Zlogger is a nice, neat library, and you may not immediately appreciate why. Read the CLASS style guide please, and write your code to make it indistinguishable from the rest of the code in the library. That is the only real criteria for good style: it's invisible.
@@ -304,7 +328,7 @@ Do read your code after you write it and ask, "Can I make this simpler?" We do u
 
 Before opening a pull request read our [contribution guidelines](https://github.com/zeromq/zlogger/blob/master/CONTRIBUTING.md). Thanks!
 
-<A name="toc3-288" title="This Document" />
+<A name="toc3-312" title="This Document" />
 ### This Document
 
 _This documentation was generated from zlogger/README.txt using [Gitdown](https://github.com/zeromq/gitdown)_

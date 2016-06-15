@@ -27,6 +27,14 @@ ZLOG_EXPORT zecho_t *
 ZLOG_EXPORT void
     zecho_destroy (zecho_t **self_p);
 
+//  Initiate the echo algorithm
+ZLOG_EXPORT void
+    zecho_init (zecho_t *self);
+
+//  Handle a received echo token
+ZLOG_EXPORT void
+    zecho_recv (zecho_t *self, zyre_event_t *token);
+
 //  Self test of this class
 ZLOG_EXPORT void
     zecho_test (bool verbose);
