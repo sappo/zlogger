@@ -39,14 +39,6 @@ s_destroy_clock_value (void **clock_value_p)
     }
 }
 
-static void
-s_destroy_clock_key (void **key_p)
-{
-    assert (key_p);
-    char **clock_key_p = (char **) key_p;
-    zstr_free (clock_key_p);
-}
-
 //  --------------------------------------------------------------------------
 //  Create a new zvector
 
@@ -60,10 +52,9 @@ zvector_new (const char* pid)
     self->own_pid = strdup (pid);
     self->clock = zhashx_new ();
     zhashx_set_destructor (self->clock, s_destroy_clock_value);
-    zhashx_set_key_destructor (self->clock, s_destroy_clock_key);
     unsigned long *clock_val = (unsigned long *) zmalloc (sizeof (unsigned long));
     *clock_val = 0;
-    zhashx_insert (self->clock, strdup(pid), clock_val);
+    zhashx_insert (self->clock, pid, clock_val);
     return self;
 }
 
@@ -126,21 +117,21 @@ zvector_recv (zvector_t *self, zhashx_t *sender_clock)
     (*own_clock_value)++;
 
     zlistx_t *sender_clock_procs = zhashx_keys (sender_clock);
-    zlistx_set_destructor (sender_clock_procs, s_destroy_clock_key);
+    zlistx_set_destructor (sender_clock_procs, (zlistx_destructor_fn *) zstr_free);
     const char* pid = (const char*) zlistx_first (sender_clock_procs);
     while (pid) {
         if (zhashx_lookup (self->clock, pid)) {
             unsigned long *own_pid_clock_value = (unsigned long*) zhashx_lookup (self->clock, pid);
             unsigned long *sender_pid_clock_value = (unsigned long*) zhashx_lookup (sender_clock, pid);
 
-            if (*sender_pid_clock_value > *own_pid_clock_value)
+            if ( (*sender_pid_clock_value) > (*own_pid_clock_value) )
                  *own_pid_clock_value = *sender_pid_clock_value;
         }
         else{
             unsigned long *sender_pid_clock_value = (unsigned long*) zhashx_lookup (sender_clock, pid);
             unsigned long *own_pid_clock_value = (unsigned long *) zmalloc (sizeof (unsigned long));
             *own_pid_clock_value = *sender_pid_clock_value;
-            zhashx_insert (self->clock, strdup (pid), own_pid_clock_value);
+            zhashx_insert (self->clock, pid, own_pid_clock_value);
         }
 
         pid = (const char*) zlistx_next (sender_clock_procs);
@@ -164,15 +155,14 @@ zvector_test (bool verbose)
 
     zhashx_t *sender_clock1 = zhashx_new ();
     zhashx_set_destructor (sender_clock1, s_destroy_clock_value);
-    zhashx_set_key_destructor (sender_clock1, s_destroy_clock_key);
 
 
     unsigned long *value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
     *value1 = 5;
-    zhashx_insert (sender_clock1, strdup("1231"), value1);
+    zhashx_insert (sender_clock1, "1231", value1);
     unsigned long *value2 = (unsigned long *) zmalloc (sizeof (unsigned long));
     *value2 = 10;
-    zhashx_insert (sender_clock1, strdup("1232"), value2);
+    zhashx_insert (sender_clock1, "1232", value2);
 
     zvector_recv (self, sender_clock1);
 
