@@ -22,7 +22,7 @@
 //  Structure of our class
 
 struct _zvector_t {
-    char* own_pid;
+    char *own_pid;
     zhashx_t *clock;
 };
 
@@ -43,7 +43,7 @@ s_destroy_clock_value (void **clock_value_p)
 //  Create a new zvector
 
 zvector_t *
-zvector_new (const char* pid)
+zvector_new (const char *pid)
 {
     zvector_t *self = (zvector_t *) zmalloc (sizeof (zvector_t));
 
@@ -122,19 +122,19 @@ zvector_recv (zvector_t *self, zmsg_t *msg)
     (*own_clock_value)++;
 
     zlistx_t *sender_clock_procs = zhashx_keys (sender_clock);
-    const char* pid = (const char*) zlistx_first (sender_clock_procs);
+    const char *pid = (const char *) zlistx_first (sender_clock_procs);
     while (pid) {
         if (zhashx_lookup (self->clock, pid)) {
             unsigned long *own_pid_clock_value = (unsigned long*) zhashx_lookup (self->clock, pid);
             unsigned long *sender_pid_clock_value = (unsigned long*) zhashx_lookup (sender_clock, pid);
 
             if ( (*sender_pid_clock_value) > (*own_pid_clock_value) )
-                 *own_pid_clock_value = *sender_pid_clock_value;
+                 (*own_pid_clock_value) = (*sender_pid_clock_value);
         }
         else{
             unsigned long *sender_pid_clock_value = (unsigned long*) zhashx_lookup (sender_clock, pid);
             unsigned long *own_pid_clock_value = (unsigned long *) zmalloc (sizeof (unsigned long));
-            *own_pid_clock_value = *sender_pid_clock_value;
+            (*own_pid_clock_value) = (*sender_pid_clock_value);
             zhashx_insert (self->clock, pid, own_pid_clock_value);
         }
 
@@ -176,15 +176,15 @@ zvector_test (bool verbose)
     *test2_value1 = 5;
     zhashx_insert (test2_sender_clock1, "1232", test2_value1);
 
-    unsigned long *test2_self_own_clock_value = (unsigned long*) zhashx_lookup (test2_self->clock, "1231");
+    unsigned long *test2_self_own_clock_value = (unsigned long *) zhashx_lookup (test2_self->clock, "1231");
     assert (*test2_self_own_clock_value == 0);
-    unsigned long *test2_self_sender_clock_value = (unsigned long*) zhashx_lookup (test2_sender_clock1, "1232");
+    unsigned long *test2_self_sender_clock_value = (unsigned long *) zhashx_lookup (test2_sender_clock1, "1232");
     assert (*test2_self_sender_clock_value == *test2_value1);
 
     zvector_event (test2_self);
-    test2_self_own_clock_value = (unsigned long*) zhashx_lookup (test2_self->clock, "1231");
+    test2_self_own_clock_value = (unsigned long *) zhashx_lookup (test2_self->clock, "1231");
     assert (*test2_self_own_clock_value == 1);
-    test2_self_sender_clock_value = (unsigned long*) zhashx_lookup (test2_sender_clock1, "1232");
+    test2_self_sender_clock_value = (unsigned long *) zhashx_lookup (test2_sender_clock1, "1232");
     assert (*test2_self_sender_clock_value == 5);
 
     zhashx_destroy (&test2_sender_clock1);
@@ -222,9 +222,9 @@ zvector_test (bool verbose)
     zmsg_prepend (test3_msg1, &test3_packed_clock1);
     zvector_recv (test3_self_clock, test3_msg1);
     zmsg_destroy (&test3_msg1);
-    unsigned long *test3_found_value1 = (unsigned long*) zhashx_lookup (test3_self_clock->clock, "1231");
+    unsigned long *test3_found_value1 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1231");
     assert (*test3_found_value1 == 5);
-    unsigned long *test3_found_value2 = (unsigned long*) zhashx_lookup (test3_self_clock->clock, "1232");
+    unsigned long *test3_found_value2 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1232");
     assert (*test3_found_value2 == 10);
 
     // receive sender clock 2 and add key-value pairs to own clock
@@ -233,11 +233,11 @@ zvector_test (bool verbose)
     zmsg_prepend (test3_msg2, &test3_packed_clock2);
     zvector_recv (test3_self_clock, test3_msg2);
     zmsg_destroy (&test3_msg2);
-    unsigned long *test3_found_value3 = (unsigned long*) zhashx_lookup (test3_self_clock->clock, "1231");
+    unsigned long *test3_found_value3 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1231");
     assert (*test3_found_value3 == 20);
     test3_found_value2 = (unsigned long*) zhashx_lookup (test3_self_clock->clock, "1232");
     assert (*test3_found_value2 == 10);
-    unsigned long *test3_found_value4 = (unsigned long*) zhashx_lookup (test3_self_clock->clock, "1233");
+    unsigned long *test3_found_value4 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1233");
     assert (*test3_found_value4 == 30);
 
     zhashx_destroy (&test3_sender_clock1);
