@@ -144,6 +144,7 @@ Include `zlogger.h` in your application and link with libzlogger. Here is a typi
 This is the API provided by Zlogger 2.x, in alphabetical order.
 
 .pull doc/zecho.doc
+.pull doc/zvector.doc
 
 ### Hints to Contributors
 

@@ -1,4 +1,4 @@
-####  - Implements the echo algorithms
+#### zecho - Implements the echo algorithms
 
 zecho - Implements the echo algorithms
 
@@ -140,5 +140,11 @@ This is the class self test code:
     zyre_destroy (&node1);
     zyre_destroy (&node2);
     zyre_destroy (&node3);
+    
+    zsock_t *logger = zsock_new_push (">tcp://127.0.0.1:24555");
+    assert (logger);
+    zstr_send (logger, "blub bla");
+    zclock_sleep (1000);
+    zsock_destroy (&logger);
     
 

@@ -10,7 +10,7 @@ SYNOPSIS
 ----
 //  Create a new zvector
 ZLOG_EXPORT zvector_t *
-    zvector_new (void);
+    zvector_new (const char* pid);
 
 //  Destroy the zvector
 ZLOG_EXPORT void
@@ -34,7 +34,23 @@ EXAMPLE
 .From zvector_test method
 ----
 //  Simple create/destroy test
-zvector_t *self = zvector_new ();
+zvector_t *self = zvector_new ("1231");
 assert (self);
+
+zhashx_t *sender_clock1 = zhashx_new ();
+zhashx_set_destructor (sender_clock1, s_destroy_clock_value);
+
+
+unsigned long *value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
+*value1 = 5;
+zhashx_insert (sender_clock1, "1231", value1);
+unsigned long *value2 = (unsigned long *) zmalloc (sizeof (unsigned long));
+*value2 = 10;
+zhashx_insert (sender_clock1, "1232", value2);
+
+zvector_recv (self, sender_clock1);
+
+zhashx_destroy (&sender_clock1);
 zvector_destroy (&self);
+
 ----

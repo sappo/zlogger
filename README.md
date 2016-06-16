@@ -23,11 +23,12 @@
 **<a href="#toc3-143">Linking with an Application</a>**
 
 **<a href="#toc3-150">API Summary</a>**
-*  <a href="#toc4-155"> - Implements the echo algorithms</a>
+*  <a href="#toc4-155">zecho - Implements the echo algorithms</a>
+*  <a href="#toc4-306">zvector - Implements a dynamic vector clock</a>
 
-**<a href="#toc3-301">Hints to Contributors</a>**
+**<a href="#toc3-352">Hints to Contributors</a>**
 
-**<a href="#toc3-312">This Document</a>**
+**<a href="#toc3-363">This Document</a>**
 
 <A name="toc2-13" title="Overview" />
 ## Overview
@@ -171,8 +172,8 @@ Include `zlogger.h` in your application and link with libzlogger. Here is a typi
 
 This is the API provided by Zlogger 2.x, in alphabetical order.
 
-<A name="toc4-155" title=" - Implements the echo algorithms" />
-####  - Implements the echo algorithms
+<A name="toc4-155" title="zecho - Implements the echo algorithms" />
+#### zecho - Implements the echo algorithms
 
 zecho - Implements the echo algorithms
 
@@ -315,9 +316,60 @@ This is the class self test code:
     zyre_destroy (&node2);
     zyre_destroy (&node3);
     
+    zsock_t *logger = zsock_new_push (">tcp://127.0.0.1:24555");
+    assert (logger);
+    zstr_send (logger, "blub bla");
+    zclock_sleep (1000);
+    zsock_destroy (&logger);
+    
+
+<A name="toc4-306" title="zvector - Implements a dynamic vector clock" />
+#### zvector - Implements a dynamic vector clock
+
+zvector - Implements a dynamic vector clock
+
+Please add @discuss section in ../src/zvector.c.
+
+This is the class interface:
+
+    //  Create a new zvector
+    ZLOG_EXPORT zvector_t *
+        zvector_new (const char* pid);
+    
+    //  Destroy the zvector
+    ZLOG_EXPORT void
+        zvector_destroy (zvector_t **self_p);
+    
+    //  Self test of this class
+    ZLOG_EXPORT void
+        zvector_test (bool verbose);
+    
+
+This is the class self test code:
+
+    //  Simple create/destroy test
+    zvector_t *self = zvector_new ("1231");
+    assert (self);
+    
+    zhashx_t *sender_clock1 = zhashx_new ();
+    zhashx_set_destructor (sender_clock1, s_destroy_clock_value);
+    
+    
+    unsigned long *value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
+    *value1 = 5;
+    zhashx_insert (sender_clock1, "1231", value1);
+    unsigned long *value2 = (unsigned long *) zmalloc (sizeof (unsigned long));
+    *value2 = 10;
+    zhashx_insert (sender_clock1, "1232", value2);
+    
+    zvector_recv (self, sender_clock1);
+    
+    zhashx_destroy (&sender_clock1);
+    zvector_destroy (&self);
+    
 
 
-<A name="toc3-301" title="Hints to Contributors" />
+<A name="toc3-352" title="Hints to Contributors" />
 ### Hints to Contributors
 
 Zlogger is a nice, neat library, and you may not immediately appreciate why. Read the CLASS style guide please, and write your code to make it indistinguishable from the rest of the code in the library. That is the only real criteria for good style: it's invisible.
@@ -328,7 +380,7 @@ Do read your code after you write it and ask, "Can I make this simpler?" We do u
 
 Before opening a pull request read our [contribution guidelines](https://github.com/zeromq/zlogger/blob/master/CONTRIBUTING.md). Thanks!
 
-<A name="toc3-312" title="This Document" />
+<A name="toc3-363" title="This Document" />
 ### This Document
 
 _This documentation was generated from zlogger/README.txt using [Gitdown](https://github.com/zeromq/gitdown)_

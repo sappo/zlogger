@@ -31,6 +31,8 @@ EXTRA_DIST = \
     Findlibzmq.cmake \
     Findczmq.cmake \
     Findzyre.cmake \
+    README.txt \
+    README.md \
     src/zlog_classes.h
 
 include $(srcdir)/src/Makemodule.am
