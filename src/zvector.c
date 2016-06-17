@@ -40,6 +40,40 @@ s_destroy_clock_value (void **clock_value_p)
 }
 
 //  --------------------------------------------------------------------------
+//  Serializes a pointer-address
+
+static const char *
+s_serialize_unsigned_long (void *item)
+{
+    assert (item);
+    unsigned long value = *(unsigned long *) item;
+    int length = 1;
+
+    while (value) {
+        value /= 10;
+        length++;
+    }
+
+    char *result = (char *) zmalloc (length * sizeof (char));
+    sprintf(result, "%lu", *(unsigned long *)item);
+
+    return result;
+}
+
+//  --------------------------------------------------------------------------
+//  Deserializes a pointer-address
+
+static void *
+s_deserialize_unsigned_long (const char *item)
+{
+    assert (item);
+    unsigned long *result = (unsigned long *) zmalloc (sizeof (unsigned long));
+    sscanf (item, "%lu", result);
+
+    return result;
+}
+
+//  --------------------------------------------------------------------------
 //  Create a new zvector
 
 zvector_t *
@@ -258,6 +292,19 @@ zvector_test (bool verbose)
 
     zmsg_destroy (&test4_zmsg);
     zvector_destroy (&test4_self);
+
+
+    // Test for helper funtions
+    unsigned long test_p = 253234;
+
+    const char *char_p = s_serialize_unsigned_long ((void *)&test_p);
+    //printf("serialized: %s\n", char_p);
+
+    void *void_p = s_deserialize_unsigned_long (char_p);
+    //printf("deserialized: %lu\n", *((unsigned long *)void_p));
+
+    free ((char *)char_p);
+    free (void_p);
 
 
 
