@@ -39,11 +39,10 @@ s_destroy_clock_value (void **clock_value_p)
     }
 }
 
-//  --------------------------------------------------------------------------
-//  Serializes a pointer-address
+//  Serializes an unsigned long into a string
 
-static const char *
-s_serialize_unsigned_long (void *item)
+static char *
+s_serialize_clock_value (const void *item)
 {
     assert (item);
     unsigned long value = *(unsigned long *) item;
@@ -60,11 +59,10 @@ s_serialize_unsigned_long (void *item)
     return result;
 }
 
-//  --------------------------------------------------------------------------
-//  Deserializes a pointer-address
+//  Deserializes a string into an unsigned long
 
 static void *
-s_deserialize_unsigned_long (const char *item)
+s_deserialize_clock_value (const char *item)
 {
     assert (item);
     unsigned long *result = (unsigned long *) zmalloc (sizeof (unsigned long));
@@ -149,7 +147,7 @@ zvector_recv (zvector_t *self, zmsg_t *msg)
     assert (self);
 
     zframe_t *packed_clock = zmsg_pop (msg);
-    zhashx_t *sender_clock = zhashx_unpack (packed_clock);
+    zhashx_t *sender_clock = zhashx_unpack_own (packed_clock, s_deserialize_clock_value);
     zhashx_set_destructor (sender_clock, s_destroy_clock_value);
 
     unsigned long *own_clock_value = (unsigned long*) zhashx_lookup (self->clock, self->own_pid);
@@ -252,7 +250,7 @@ zvector_test (bool verbose)
 
     // receive sender clock 1 and add key-value pairs to own clock
     zmsg_t *test3_msg1 = zmsg_new ();
-    zframe_t *test3_packed_clock1 = zhashx_pack (test3_sender_clock1);
+    zframe_t *test3_packed_clock1 = zhashx_pack_own (test3_sender_clock1, s_serialize_clock_value);
     zmsg_prepend (test3_msg1, &test3_packed_clock1);
     zvector_recv (test3_self_clock, test3_msg1);
     zmsg_destroy (&test3_msg1);
@@ -263,7 +261,7 @@ zvector_test (bool verbose)
 
     // receive sender clock 2 and add key-value pairs to own clock
     zmsg_t *test3_msg2 = zmsg_new ();
-    zframe_t *test3_packed_clock2 = zhashx_pack (test3_sender_clock2);
+    zframe_t *test3_packed_clock2 = zhashx_pack_own (test3_sender_clock2, s_serialize_clock_value);
     zmsg_prepend (test3_msg2, &test3_packed_clock2);
     zvector_recv (test3_self_clock, test3_msg2);
     zmsg_destroy (&test3_msg2);
@@ -278,8 +276,6 @@ zvector_test (bool verbose)
     zhashx_destroy (&test3_sender_clock2);
     zvector_destroy (&test3_self_clock);
 
-
-
     // Simple send prepare test
     zvector_t *test4_self = zvector_new ("1231");
     assert (test4_self);
@@ -292,21 +288,6 @@ zvector_test (bool verbose)
 
     zmsg_destroy (&test4_zmsg);
     zvector_destroy (&test4_self);
-
-
-    // Test for helper funtions
-    unsigned long test_p = 253234;
-
-    const char *char_p = s_serialize_unsigned_long ((void *)&test_p);
-    //printf("serialized: %s\n", char_p);
-
-    void *void_p = s_deserialize_unsigned_long (char_p);
-    //printf("deserialized: %lu\n", *((unsigned long *)void_p));
-
-    free ((char *)char_p);
-    free (void_p);
-
-
 
     //  @end
     printf ("OK\n");
