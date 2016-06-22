@@ -293,7 +293,7 @@ zvector_test (bool verbose)
     char *test4_unpacked_string = zmsg_popstr (test4_zmsg);
     assert (streq (test4_unpacked_string, "test"));
 
-
+    zframe_destroy (&test4_popped_frame);
     zstr_free (&test4_unpacked_string);
     zhashx_destroy (&test4_unpacked_clock);
     zmsg_destroy (&test4_zmsg);
