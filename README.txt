@@ -123,7 +123,7 @@ Now let's build Zlogger from GitHub:
     cd ..\..\..\..
 ```
 
-Test by running the `zyre_selftest` command:
+Test by running the `zlogger_selftest` command:
 ```
     dir/s/b zlogger_selftest.exe
     zlogger\builds\msvc\vs2013\DebugDEXE\zlogger_selftest.exe
@@ -141,7 +141,7 @@ Include `zlogger.h` in your application and link with libzlogger. Here is a typi
 
 ### API Summary
 
-This is the API provided by Zlogger 2.x, in alphabetical order.
+This is the API provided by Zlogger 0.x, in alphabetical order.
 
 .pull doc/zecho.doc
 .pull doc/zvector.doc
