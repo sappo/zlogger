@@ -178,6 +178,80 @@ zvector_recv (zvector_t *self, zmsg_t *msg)
     zhashx_destroy (&sender_clock);
 }
 
+
+char *
+zvector_toString (zvector_t *self)
+{
+  assert (self);
+
+  //formation: 'VC:$numberOfClocks;$pid1,$val1;...;$pidx,$valx;\0'
+  char *result = NULL;
+  int string_length = 5;
+  unsigned long tmp_val_length = 0;
+  zlistx_t *clock_procs = zhashx_keys (self->clock);
+  zlistx_t *clock_values = zhashx_values (self->clock);
+  int list_size = zlistx_size (clock_procs);
+
+  // calculate needed chars for allocation
+  // digits needed for numberOfClocks
+  tmp_val_length = list_size;
+  while (tmp_val_length) {
+      tmp_val_length /= 10;
+      string_length += 1;
+  }
+
+  // chars needed for seperators
+  string_length += (list_size * 2);
+
+  const char *pid = (const char *) zlistx_first (clock_procs);
+  unsigned long *value = (unsigned long *) zlistx_first (clock_values);
+  tmp_val_length = *value;
+
+  while (pid) {
+    string_length += strlen (pid);
+
+    // calc digits of clock_value
+    while (tmp_val_length) {
+        tmp_val_length /= 10;
+        string_length += 1;
+    }
+
+    pid = (const char*) zlistx_next (clock_procs);
+    value = (unsigned long *) zlistx_next (clock_values);
+
+    if (value)
+      tmp_val_length = *value;
+  }
+
+  result = (char *) zmalloc (string_length * sizeof (char));
+
+  // fill up string
+  pid = (const char *) zlistx_first (clock_procs);
+  value = (unsigned long *) zlistx_first (clock_values);
+  char tmp_string[11]; // max digits of a long value
+  tmp_string[10] = '\0';
+
+  sprintf(result, "VC:%d;", list_size);
+  while (pid) {
+    strcat (result, pid);
+    strcat (result, ",");
+    sprintf(tmp_string, "%lu", *value);
+    strcat (result, tmp_string);
+    strcat (result, ";");
+
+    pid = (const char*) zlistx_next (clock_procs);
+    value = (unsigned long *) zlistx_next (clock_values);
+  }
+
+  //printf ("\nstring: '%s' length: %lu calc_length: %d\n", result, strlen (result), string_length);
+
+
+  zlistx_destroy (&clock_procs);
+  zlistx_destroy (&clock_values);
+
+  return result;
+}
+
 //  --------------------------------------------------------------------------
 //  Self test of this class
 
@@ -299,6 +373,27 @@ zvector_test (bool verbose)
     zmsg_destroy (&test4_zmsg);
     zvector_destroy (&test4_self);
 
+
+
+    // Simple toString test
+    zvector_t *test5_self = zvector_new ("1000");
+    assert (test5_self);
+
+    // inserting sime clocks & values
+    zvector_event (test5_self);
+
+    unsigned long *test5_inserted_value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
+    *test5_inserted_value1 = 7;
+    zhashx_insert (test5_self->clock, "1222", test5_inserted_value1);
+    unsigned long *test5_inserted_value2 = (unsigned long *) zmalloc (sizeof (unsigned long));
+    *test5_inserted_value2 = 11;
+    zhashx_insert (test5_self->clock, "1444", test5_inserted_value2);
+
+    char *test5_string = zvector_toString (test5_self);
+    assert (streq (test5_string, "VC:3;1000,1;1222,7;1444,11;"));
+
+    zstr_free (&test5_string);
+    zvector_destroy (&test5_self);
 
 
     //  @end
