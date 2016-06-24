@@ -228,24 +228,25 @@ zvector_toString (zvector_t *self)
   result = (char *) zmalloc (string_length * sizeof (char));
 
   // fill up string
-  pid = (const char *) zlistx_first (clock_procs);
-  value = (unsigned long *) zlistx_first (clock_values);
+  value = (unsigned long *) zhashx_first (self->clock);
+  pid = (const char *) zhashx_cursor (self->clock);
   char tmp_string[11]; // max digits of a long value
   tmp_string[10] = '\0';
 
-  sprintf(result, "VC:%d;", list_size);
-  while (pid) {
+  sprintf(result, "VC:%d;", vector_size);
+  while (value) {
     strcat (result, pid);
     strcat (result, ",");
     sprintf(tmp_string, "%lu", *value);
     strcat (result, tmp_string);
     strcat (result, ";");
 
-    pid = (const char*) zlistx_next (clock_procs);
-    value = (unsigned long *) zlistx_next (clock_values);
+    value = (unsigned long *) zhashx_next (self->clock);
+    pid = (const char*) zhashx_cursor (self->clock);
   }
 
-  //printf ("\nstring: '%s' length: %lu calc_length: %d\n", result, strlen (result), string_length);
+  return result;
+}
 
 
   zlistx_destroy (&clock_procs);
