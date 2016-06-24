@@ -179,6 +179,10 @@ zvector_recv (zvector_t *self, zmsg_t *msg)
 }
 
 
+//  --------------------------------------------------------------------------
+//  Converts the zvector into string representation
+
+
 char *
 zvector_toString (zvector_t *self)
 {
@@ -188,26 +192,24 @@ zvector_toString (zvector_t *self)
   char *result = NULL;
   int string_length = 5;
   unsigned long tmp_val_length = 0;
-  zlistx_t *clock_procs = zhashx_keys (self->clock);
-  zlistx_t *clock_values = zhashx_values (self->clock);
-  int list_size = zlistx_size (clock_procs);
+
+  int vector_size = zhashx_size (self->clock);
 
   // calculate needed chars for allocation
   // digits needed for numberOfClocks
-  tmp_val_length = list_size;
+  tmp_val_length = vector_size;
   while (tmp_val_length) {
       tmp_val_length /= 10;
       string_length += 1;
   }
 
   // chars needed for seperators
-  string_length += (list_size * 2);
-
-  const char *pid = (const char *) zlistx_first (clock_procs);
-  unsigned long *value = (unsigned long *) zlistx_first (clock_values);
+  string_length += (vector_size * 2);
+  unsigned long *value = (unsigned long *) zhashx_first (self->clock);
+  const char *pid = (const char *) zhashx_cursor (self->clock);
   tmp_val_length = *value;
 
-  while (pid) {
+  while (value) {
     string_length += strlen (pid);
 
     // calc digits of clock_value
@@ -216,8 +218,8 @@ zvector_toString (zvector_t *self)
         string_length += 1;
     }
 
-    pid = (const char*) zlistx_next (clock_procs);
-    value = (unsigned long *) zlistx_next (clock_values);
+    value = (unsigned long *) zhashx_next (self->clock);
+    pid = (const char*) zhashx_cursor (self->clock);
 
     if (value)
       tmp_val_length = *value;
@@ -285,7 +287,7 @@ zvector_test (bool verbose)
     unsigned long *test2_self_own_clock_value = (unsigned long *) zhashx_lookup (test2_self->clock, "1231");
     assert (*test2_self_own_clock_value == 0);
     unsigned long *test2_self_sender_clock_value = (unsigned long *) zhashx_lookup (test2_sender_clock1, "1232");
-    assert (*test2_self_sender_clock_value == *test2_value1);
+    assert (*test2_self_sender_clock_value == 5);
 
     zvector_event (test2_self);
     test2_self_own_clock_value = (unsigned long *) zhashx_lookup (test2_self->clock, "1231");
