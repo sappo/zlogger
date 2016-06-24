@@ -13,6 +13,6 @@
 
     <class name = "zecho">Implements the echo algorithms</class>
     <class name = "zvector">Implements a dynamic vector clock</class>
-    <class name = "zelection"></class>
+    <class name = "zelection">Holds an election with all connected peers</class>
 
 </project>
