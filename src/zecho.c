@@ -23,10 +23,16 @@
 //  Structure of our class
 
 struct _zecho_t {
-    int recv_msg;     //  Counts the number of received mesages.
-    char *father;     //  Holds the ID of the first peer that did send an
-                      //  echo message
-    zyre_t *node;      //  Own zyre handle
+    unsigned int recv_msg;     //  Counts the number of received mesages.
+    char *father;     //  Father in the echo wave
+    char *wave_id;    //  Id of the current wave
+
+    zecho_handle_fn *inform_fn;     //  Handler for inform messages
+    void *inform_handler;           //  Inform handler object
+    zecho_handle_fn *collect_fn;    //  Handler for collect messages
+    void *collect_handler;          //  Collect handler object
+
+    zyre_t *node;     //  Own zyre handle
 };
 
 
@@ -41,6 +47,7 @@ zecho_new (zyre_t *node)
     //  Initialize class properties here
     self->recv_msg = 0;
     self->father = NULL;
+    self->wave_id = NULL;
     self->node = node;
     return self;
 }
@@ -57,6 +64,7 @@ zecho_destroy (zecho_t **self_p)
         zecho_t *self = *self_p;
         //  Free class properties here
         zstr_free (&self->father);
+        zstr_free (&self->wave_id);
         //  Free object itself
         free (self);
         *self_p = NULL;
@@ -68,8 +76,11 @@ zecho_destroy (zecho_t **self_p)
 //  Initiate the echo algorithm
 
 void
-zecho_init (zecho_t *self) {
+zecho_init (zecho_t *self)
+{
+    assert (self);
     self->father = strdup("initiator");
+    self->wave_id = strdup (zyre_uuid (self->node));
 
     zlist_t *groups = zyre_own_groups (self->node);
     const char *group = (const char *) zlist_first (groups);
@@ -81,9 +92,16 @@ zecho_init (zecho_t *self) {
         while (neighbor) {
             if (!streq (neighbor, self->father)) {
                 //  Send token to neighbor
-                zmsg_t *token = zmsg_new ();
-                zmsg_addstr (token, "tok");
-                zyre_whisper (self->node, neighbor, &token);
+                zmsg_t *inform_msg = zmsg_new ();
+                zmsg_addstr (inform_msg, "ZE");
+                zmsg_addstr (inform_msg, self->wave_id);
+                //  Get inform message from handler
+                if (self->inform_fn) {
+                    zmsg_t *handler_msg = self->inform_fn (self->inform_handler, NULL);
+                    zmsg_addmsg (inform_msg, &handler_msg);
+                }
+                //  Send INFORM message to neighbor
+                zyre_whisper (self->node, neighbor, &inform_msg);
             }
             //  Get next item in list
             neighbor = (char *) zlist_next (neighbors);
@@ -101,6 +119,7 @@ zecho_init (zecho_t *self) {
 static unsigned long
 s_zecho_neighbor_count (zecho_t *self)
 {
+    assert (self);
     unsigned long neighbors_count = 0;
     zlist_t *groups = zyre_own_groups (self->node);
     const char *group = (const char *) zlist_first (groups);
@@ -119,13 +138,22 @@ s_zecho_neighbor_count (zecho_t *self)
 //  --------------------------------------------------------------------------
 //  Handle a received echo token
 
-void
+int
 zecho_recv (zecho_t *self, zyre_event_t *token)
 {
+    assert (self);
+    assert (token);
     self->recv_msg++;
+
+    char *wave_id = zmsg_popstr (zyre_event_msg (token));
+    if (self->father && !streq (self->wave_id, wave_id)) {
+        zstr_free (&wave_id);
+        return -1;     //  Wrong wave
+    }
 
     if (!self->father) {
         self->father = strdup (zyre_event_peer_uuid (token));
+        self->wave_id = wave_id;
         //  Forward token to all neighbors but father
         zlist_t *groups = zyre_own_groups (self->node);
         const char *group = (const char *) zlist_first (groups);
@@ -134,10 +162,16 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
             char *neighbor = (char *) zlist_first (neighbors);
             while (neighbor) {
                 if (!streq (neighbor, self->father)) {
-                    //  Send token to neighbor
-                    zmsg_t *token = zmsg_new ();
-                    zmsg_addstr (token, "tok");
-                    zyre_whisper (self->node, neighbor, &token);
+                    zmsg_t *inform_msg = zmsg_new ();
+                    zmsg_addstr (inform_msg, "ZE");
+                    zmsg_addstr (inform_msg, self->wave_id);
+                    //  Get inform message from handler
+                    if (self->inform_fn) {
+                        zmsg_t *handler_msg = self->inform_fn (self->inform_handler, zyre_event_get_msg (token));
+                        zmsg_addmsg (inform_msg, &handler_msg);
+                    }
+                    //  Send INFORM message to neighbor
+                    zyre_whisper (self->node, neighbor, &inform_msg);
                     printf ("Forward to %s in group %s\n", neighbor, group);
                 }
                 //  Get next item in list
@@ -149,27 +183,50 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
         }
         zlist_destroy (&groups);
     }
+    else
+        zstr_free (&wave_id);
 
-    if (self->recv_msg == s_zecho_neighbor_count(self)) {
+    if (self->recv_msg == s_zecho_neighbor_count (self)) {
         if (streq (self->father, "initiator")) {
             //  Decide
+            if (self->collect_fn) {
+                (void *) self->collect_fn (self->collect_handler, zyre_event_get_msg (token));
+            }
             printf("Decide\n");
         }
         else {
-            //  Send token to father
-            zmsg_t *token = zmsg_new ();
-            zmsg_addstr (token, "tok");
-            zyre_whisper (self->node, self->father, &token);
+            zmsg_t *collect_msg = zmsg_new ();
+            zmsg_addstr (collect_msg, "ZE");
+            zmsg_addstr (collect_msg, self->wave_id);
+            //  Get collect message from handler
+            if (self->collect_fn) {
+                zmsg_t *handler_msg = self->collect_fn (self->collect_handler, zyre_event_get_msg (token));
+                zmsg_addmsg (collect_msg, &handler_msg);
+            }
+            //  Send COLLECT message to father
+            zyre_whisper (self->node, self->father, &collect_msg);
             printf("Send to father\n");
         }
     }
 
     zyre_event_destroy (&token);
+    return 0;
 }
 
 
 //  --------------------------------------------------------------------------
-//  Initiate the echo algorithm
+//  Get wave id
+
+const char *
+zecho_wave_id (zecho_t *self)
+{
+    assert (self);
+    return self->wave_id;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Print echo status to command line
 
 void
 zecho_print (zecho_t *self) {
@@ -177,6 +234,8 @@ zecho_print (zecho_t *self) {
     printf ("    ID: %s,\n", zyre_uuid (self->node));
     printf ("    count: %d\n", self->recv_msg);
     printf ("    father: %s\n", self->father);
+    printf ("    wave id: %s\n", self->wave_id);
+    printf ("}\n");
 }
 
 
@@ -254,6 +313,9 @@ zecho_test (bool verbose)
         else
             break;
     } while (1);
+    char *type = zmsg_popstr (zyre_event_msg (event));
+    assert (streq (type, "ZE"));
+    zstr_free (&type);
     zecho_recv (echo2, event);
 
     do {
@@ -263,6 +325,9 @@ zecho_test (bool verbose)
         else
             break;
     } while (1);
+    type = zmsg_popstr (zyre_event_msg (event));
+    assert (streq (type, "ZE"));
+    zstr_free (&type);
     zecho_recv (echo3, event);
 
     do {
@@ -272,6 +337,9 @@ zecho_test (bool verbose)
         else
             break;
     } while (1);
+    type = zmsg_popstr (zyre_event_msg (event));
+    assert (streq (type, "ZE"));
+    zstr_free (&type);
     zecho_recv (echo2, event);
 
     do {
@@ -281,6 +349,9 @@ zecho_test (bool verbose)
         else
             break;
     } while (1);
+    type = zmsg_popstr (zyre_event_msg (event));
+    assert (streq (type, "ZE"));
+    zstr_free (&type);
     zecho_recv (echo1, event);
 
     // Print result

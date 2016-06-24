@@ -19,6 +19,11 @@ extern "C" {
 #endif
 
 //  @interface
+
+// Handle INFORM or COLLECT  messages
+typedef zmsg_t * (zecho_handle_fn) (
+    void *self, zmsg_t *msg);
+
 //  Create a new zecho
 ZLOG_EXPORT zecho_t *
     zecho_new (zyre_t *node);
@@ -32,7 +37,7 @@ ZLOG_EXPORT void
     zecho_init (zecho_t *self);
 
 //  Handle a received echo token
-ZLOG_EXPORT void
+ZLOG_EXPORT int
     zecho_recv (zecho_t *self, zyre_event_t *token);
 
 //  Self test of this class
