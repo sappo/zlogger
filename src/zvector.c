@@ -248,13 +248,6 @@ zvector_toString (zvector_t *self)
   return result;
 }
 
-
-  zlistx_destroy (&clock_procs);
-  zlistx_destroy (&clock_values);
-
-  return result;
-}
-
 //  --------------------------------------------------------------------------
 //  Self test of this class
 
