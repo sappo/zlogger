@@ -94,7 +94,6 @@ zvector_new (const char *pid)
 //  --------------------------------------------------------------------------
 //  Destroy the zvector
 
-
 void
 zvector_destroy (zvector_t **self_p)
 {
@@ -126,7 +125,6 @@ zvector_event (zvector_t *self)
 //  --------------------------------------------------------------------------
 //  Send the zvector
 
-
 zmsg_t *
 zvector_send_prepare (zvector_t *self, zmsg_t *msg)
 {
@@ -139,7 +137,6 @@ zvector_send_prepare (zvector_t *self, zmsg_t *msg)
 
 //  --------------------------------------------------------------------------
 //  Recv the zvector
-
 
 void
 zvector_recv (zvector_t *self, zmsg_t *msg)
@@ -181,7 +178,6 @@ zvector_recv (zvector_t *self, zmsg_t *msg)
 
 //  --------------------------------------------------------------------------
 //  Converts the zvector into string representation
-
 
 char *
 zvector_toString (zvector_t *self)
@@ -247,6 +243,31 @@ zvector_toString (zvector_t *self)
 
   return result;
 }
+
+
+//  --------------------------------------------------------------------------
+//  Prints the zvector for debug purposes
+
+void
+zvector_print (zvector_t *self)
+{
+  assert (self);
+
+  int vector_size = zhashx_size (self->clock);
+  unsigned long *value = (unsigned long *) zhashx_first (self->clock);
+  const char *pid = (const char *) zhashx_cursor (self->clock);
+
+  printf ("\n\tpid\tvalue\tsize: %d\n", vector_size);
+
+  while (value) {
+    printf ("\t%s\t%lu\n", pid, *value);
+
+    value = (unsigned long *) zhashx_next (self->clock);
+    pid = (const char *) zhashx_cursor (self->clock);
+  }
+}
+
+
 
 //  --------------------------------------------------------------------------
 //  Self test of this class
