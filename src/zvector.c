@@ -26,6 +26,7 @@ struct _zvector_t {
     zhashx_t *clock;
 };
 
+
 //  --------------------------------------------------------------------------
 //  Local helper
 
@@ -38,6 +39,7 @@ s_destroy_clock_value (void **clock_value_p)
         free (clock_value);
     }
 }
+
 
 //  Serializes an unsigned long into a string
 
@@ -54,12 +56,13 @@ s_serialize_clock_value (const void *item)
     }
 
     char *result = (char *) zmalloc (length * sizeof (char));
-    sprintf(result, "%lu", *(unsigned long *)item);
+    sprintf (result, "%lu", *(unsigned long *) item);
 
     return result;
 }
 
-//  Deserializes a string into an unsigned long
+
+//  Deserializes a string representation of clock value into an unsigned long
 
 static void *
 s_deserialize_clock_value (const char *item)
@@ -70,6 +73,7 @@ s_deserialize_clock_value (const char *item)
 
     return result;
 }
+
 
 //  --------------------------------------------------------------------------
 //  Create a new zvector
@@ -117,17 +121,19 @@ void
 zvector_event (zvector_t *self)
 {
     assert (self);
-    unsigned long *own_clock_value = (unsigned long*) zhashx_lookup (self->clock, self->own_pid);
+    unsigned long *own_clock_value = (unsigned long *) zhashx_lookup (self->clock, self->own_pid);
     (*own_clock_value)++;
 }
 
 
 //  --------------------------------------------------------------------------
-//  Send the zvector
+//  Eventing own clock & packing vectorclock with given msg
 
 zmsg_t *
 zvector_send_prepare (zvector_t *self, zmsg_t *msg)
 {
+    assert (self);
+
     zvector_event (self);
     zframe_t *packed_clock = zhashx_pack_own (self->clock, s_serialize_clock_value);
     zmsg_prepend (msg, &packed_clock);
@@ -136,7 +142,7 @@ zvector_send_prepare (zvector_t *self, zmsg_t *msg)
 
 
 //  --------------------------------------------------------------------------
-//  Recv the zvector
+//  Recv the zvector & updates own vectorclock
 
 void
 zvector_recv (zvector_t *self, zmsg_t *msg)
@@ -147,21 +153,21 @@ zvector_recv (zvector_t *self, zmsg_t *msg)
     zhashx_t *sender_clock = zhashx_unpack_own (packed_clock, s_deserialize_clock_value);
     zhashx_set_destructor (sender_clock, s_destroy_clock_value);
 
-    unsigned long *own_clock_value = (unsigned long*) zhashx_lookup (self->clock, self->own_pid);
+    unsigned long *own_clock_value = (unsigned long *) zhashx_lookup (self->clock, self->own_pid);
     (*own_clock_value)++;
 
     zlistx_t *sender_clock_procs = zhashx_keys (sender_clock);
     const char *pid = (const char *) zlistx_first (sender_clock_procs);
     while (pid) {
         if (zhashx_lookup (self->clock, pid)) {
-            unsigned long *own_pid_clock_value = (unsigned long*) zhashx_lookup (self->clock, pid);
-            unsigned long *sender_pid_clock_value = (unsigned long*) zhashx_lookup (sender_clock, pid);
+            unsigned long *own_pid_clock_value = (unsigned long *) zhashx_lookup (self->clock, pid);
+            unsigned long *sender_pid_clock_value = (unsigned long *) zhashx_lookup (sender_clock, pid);
 
             if ( (*sender_pid_clock_value) > (*own_pid_clock_value) )
                  (*own_pid_clock_value) = (*sender_pid_clock_value);
         }
         else{
-            unsigned long *sender_pid_clock_value = (unsigned long*) zhashx_lookup (sender_clock, pid);
+            unsigned long *sender_pid_clock_value = (unsigned long *) zhashx_lookup (sender_clock, pid);
             unsigned long *own_pid_clock_value = (unsigned long *) zmalloc (sizeof (unsigned long));
             (*own_pid_clock_value) = (*sender_pid_clock_value);
             zhashx_insert (self->clock, pid, own_pid_clock_value);
@@ -180,7 +186,7 @@ zvector_recv (zvector_t *self, zmsg_t *msg)
 //  Converts the zvector into string representation
 
 char *
-zvector_toString (zvector_t *self)
+zvector_to_string (zvector_t *self)
 {
   assert (self);
 
@@ -226,7 +232,7 @@ zvector_toString (zvector_t *self)
   // fill up string
   value = (unsigned long *) zhashx_first (self->clock);
   pid = (const char *) zhashx_cursor (self->clock);
-  char tmp_string[11]; // max digits of a long value
+  char tmp_string[11]; // max digits of an unsigned long value
   tmp_string[10] = '\0';
 
   sprintf(result, "VC:%d;", vector_size);
@@ -238,7 +244,7 @@ zvector_toString (zvector_t *self)
     strcat (result, ";");
 
     value = (unsigned long *) zhashx_next (self->clock);
-    pid = (const char*) zhashx_cursor (self->clock);
+    pid = (const char *) zhashx_cursor (self->clock);
   }
 
   return result;
@@ -314,7 +320,6 @@ zvector_test (bool verbose)
     zvector_destroy (&test2_self);
 
 
-
     //  Simple recv test
     zvector_t *test3_self_clock = zvector_new ("1231");
     assert (test3_self_clock);
@@ -358,7 +363,7 @@ zvector_test (bool verbose)
     zmsg_destroy (&test3_msg2);
     unsigned long *test3_found_value3 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1231");
     assert (*test3_found_value3 == 20);
-    test3_found_value2 = (unsigned long*) zhashx_lookup (test3_self_clock->clock, "1232");
+    test3_found_value2 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1232");
     assert (*test3_found_value2 == 10);
     unsigned long *test3_found_value4 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1233");
     assert (*test3_found_value4 == 30);
@@ -392,11 +397,11 @@ zvector_test (bool verbose)
 
 
 
-    // Simple toString test
+    // Simple to_string test
     zvector_t *test5_self = zvector_new ("1000");
     assert (test5_self);
 
-    // inserting sime clocks & values
+    // inserting some clocks & values
     zvector_event (test5_self);
 
     unsigned long *test5_inserted_value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
@@ -406,7 +411,7 @@ zvector_test (bool verbose)
     *test5_inserted_value2 = 11;
     zhashx_insert (test5_self->clock, "1444", test5_inserted_value2);
 
-    char *test5_string = zvector_toString (test5_self);
+    char *test5_string = zvector_to_string (test5_self);
     assert (streq (test5_string, "VC:3;1000,1;1222,7;1444,11;"));
 
     zstr_free (&test5_string);
