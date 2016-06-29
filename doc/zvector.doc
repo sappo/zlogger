@@ -6,6 +6,7 @@ Please add @discuss section in ../src/zvector.c.
 
 This is the class interface:
 
+```h
     //  Create a new zvector
     ZLOG_EXPORT zvector_t *
         zvector_new (const char* pid);
@@ -18,27 +19,145 @@ This is the class interface:
     ZLOG_EXPORT void
         zvector_test (bool verbose);
     
+```
 
 This is the class self test code:
 
+```c
     //  Simple create/destroy test
-    zvector_t *self = zvector_new ("1231");
-    assert (self);
+    zvector_t *test1_self = zvector_new ("1231");
+    assert (test1_self);
+    zhashx_t *test1_sender_clock = zhashx_new ();
+    zhashx_set_destructor (test1_sender_clock, s_destroy_clock_value);
     
-    zhashx_t *sender_clock1 = zhashx_new ();
-    zhashx_set_destructor (sender_clock1, s_destroy_clock_value);
+    zhashx_destroy (&test1_sender_clock);
+    zvector_destroy (&test1_self);
     
     
-    unsigned long *value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
-    *value1 = 5;
-    zhashx_insert (sender_clock1, "1231", value1);
-    unsigned long *value2 = (unsigned long *) zmalloc (sizeof (unsigned long));
-    *value2 = 10;
-    zhashx_insert (sender_clock1, "1232", value2);
     
-    zvector_recv (self, sender_clock1);
+    //  Simple event test
+    zvector_t *test2_self = zvector_new ("1231");
+    assert (test2_self);
+    zhashx_t *test2_sender_clock1 = zhashx_new ();
+    zhashx_set_destructor (test2_sender_clock1, s_destroy_clock_value);
     
-    zhashx_destroy (&sender_clock1);
-    zvector_destroy (&self);
+    unsigned long *test2_value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
+    *test2_value1 = 5;
+    zhashx_insert (test2_sender_clock1, "1232", test2_value1);
     
+    unsigned long *test2_self_own_clock_value = (unsigned long *) zhashx_lookup (test2_self->clock, "1231");
+    assert (*test2_self_own_clock_value == 0);
+    unsigned long *test2_self_sender_clock_value = (unsigned long *) zhashx_lookup (test2_sender_clock1, "1232");
+    assert (*test2_self_sender_clock_value == 5);
+    
+    zvector_event (test2_self);
+    test2_self_own_clock_value = (unsigned long *) zhashx_lookup (test2_self->clock, "1231");
+    assert (*test2_self_own_clock_value == 1);
+    test2_self_sender_clock_value = (unsigned long *) zhashx_lookup (test2_sender_clock1, "1232");
+    assert (*test2_self_sender_clock_value == 5);
+    
+    zhashx_destroy (&test2_sender_clock1);
+    zvector_destroy (&test2_self);
+    
+    
+    
+    //  Simple recv test
+    zvector_t *test3_self_clock = zvector_new ("1231");
+    assert (test3_self_clock);
+    zhashx_t *test3_sender_clock1 = zhashx_new ();
+    zhashx_set_destructor (test3_sender_clock1, s_destroy_clock_value);
+    zhashx_t *test3_sender_clock2 = zhashx_new ();
+    zhashx_set_destructor (test3_sender_clock2, s_destroy_clock_value);
+    
+    // insert some key-value pairs in test3_sender_clock1
+    unsigned long *test3_inserted_value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
+    *test3_inserted_value1 = 5;
+    zhashx_insert (test3_sender_clock1, "1231", test3_inserted_value1);
+    unsigned long *test3_inserted_value2 = (unsigned long *) zmalloc (sizeof (unsigned long));
+    *test3_inserted_value2 = 10;
+    zhashx_insert (test3_sender_clock1, "1232", test3_inserted_value2);
+    
+    // insert some key-value pairs in test3_sender_clock2
+    unsigned long *test3_inserted_value3 = (unsigned long *) zmalloc (sizeof (unsigned long));
+    *test3_inserted_value3 = 20;
+    zhashx_insert (test3_sender_clock2, "1231", test3_inserted_value3);
+    unsigned long *test3_inserted_value4 = (unsigned long *) zmalloc (sizeof (unsigned long));
+    *test3_inserted_value4 = 30;
+    zhashx_insert (test3_sender_clock2, "1233", test3_inserted_value4);
+    
+    // receive sender clock 1 and add key-value pairs to own clock
+    zmsg_t *test3_msg1 = zmsg_new ();
+    zframe_t *test3_packed_clock1 = zhashx_pack_own (test3_sender_clock1, s_serialize_clock_value);
+    zmsg_prepend (test3_msg1, &test3_packed_clock1);
+    zvector_recv (test3_self_clock, test3_msg1);
+    zmsg_destroy (&test3_msg1);
+    unsigned long *test3_found_value1 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1231");
+    assert (*test3_found_value1 == 5);
+    unsigned long *test3_found_value2 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1232");
+    assert (*test3_found_value2 == 10);
+    
+    // receive sender clock 2 and add key-value pairs to own clock
+    zmsg_t *test3_msg2 = zmsg_new ();
+    zframe_t *test3_packed_clock2 = zhashx_pack_own (test3_sender_clock2, s_serialize_clock_value);
+    zmsg_prepend (test3_msg2, &test3_packed_clock2);
+    zvector_recv (test3_self_clock, test3_msg2);
+    zmsg_destroy (&test3_msg2);
+    unsigned long *test3_found_value3 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1231");
+    assert (*test3_found_value3 == 20);
+    test3_found_value2 = (unsigned long*) zhashx_lookup (test3_self_clock->clock, "1232");
+    assert (*test3_found_value2 == 10);
+    unsigned long *test3_found_value4 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1233");
+    assert (*test3_found_value4 == 30);
+    
+    zhashx_destroy (&test3_sender_clock1);
+    zhashx_destroy (&test3_sender_clock2);
+    zvector_destroy (&test3_self_clock);
+    
+    // Simple send_prepare test
+    zvector_t *test4_self = zvector_new ("1231");
+    assert (test4_self);
+    
+    zvector_event (test4_self);
+    
+    zmsg_t *test4_zmsg = zmsg_new ();
+    zmsg_pushstr (test4_zmsg, "test");
+    zvector_send_prepare (test4_self, test4_zmsg);
+    
+    zframe_t *test4_popped_frame = zmsg_pop (test4_zmsg);
+    zhashx_t *test4_unpacked_clock = zhashx_unpack_own (test4_popped_frame, s_deserialize_clock_value);
+    unsigned long *test4_found_value1 = (unsigned long *) zhashx_lookup (test4_unpacked_clock, "1231");
+    assert (*test4_found_value1 == 2);
+    char *test4_unpacked_string = zmsg_popstr (test4_zmsg);
+    assert (streq (test4_unpacked_string, "test"));
+    
+    zframe_destroy (&test4_popped_frame);
+    zstr_free (&test4_unpacked_string);
+    zhashx_destroy (&test4_unpacked_clock);
+    zmsg_destroy (&test4_zmsg);
+    zvector_destroy (&test4_self);
+    
+    
+    
+    // Simple toString test
+    zvector_t *test5_self = zvector_new ("1000");
+    assert (test5_self);
+    
+    // inserting sime clocks & values
+    zvector_event (test5_self);
+    
+    unsigned long *test5_inserted_value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
+    *test5_inserted_value1 = 7;
+    zhashx_insert (test5_self->clock, "1222", test5_inserted_value1);
+    unsigned long *test5_inserted_value2 = (unsigned long *) zmalloc (sizeof (unsigned long));
+    *test5_inserted_value2 = 11;
+    zhashx_insert (test5_self->clock, "1444", test5_inserted_value2);
+    
+    char *test5_string = zvector_toString (test5_self);
+    assert (streq (test5_string, "VC:3;1000,1;1222,7;1444,11;"));
+    
+    zstr_free (&test5_string);
+    zvector_destroy (&test5_self);
+    
+    
+```
 

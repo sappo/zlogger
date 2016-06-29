@@ -1,14 +1,15 @@
-#### zelection - class description
+#### zelection - Holds an election with all connected peers
 
-zelection - 
+zelection - Holds an election with all connected peers
 
 Please add @discuss section in ../src/zelection.c.
 
 This is the class interface:
 
+```h
     //  Create a new zelection
     ZLOG_EXPORT zelection_t *
-        zelection_new (void);
+        zelection_new (zyre_t *node);
     
     //  Destroy the zelection
     ZLOG_EXPORT void
@@ -18,11 +19,110 @@ This is the class interface:
     ZLOG_EXPORT void
         zelection_test (bool verbose);
     
+```
 
 This is the class self test code:
 
+```c
     //  Simple create/destroy test
-    zelection_t *self = zelection_new ();
-    assert (self);
-    zelection_destroy (&self);
+    int rc;
+    //  Init zyre nodes
+    zyre_t *node1 = zyre_new ("node1");
+    assert (node1);
+    //  Set inproc endpoint for this node
+    rc = zyre_set_endpoint (node1, "inproc://zyre-node1");
+    assert (rc == 0);
+    //  Set up gossip network for this node
+    zyre_gossip_bind (node1, "inproc://gossip-hub");
+    rc = zyre_start (node1);
+    assert (rc == 0);
+    
+    zyre_t *node2 = zyre_new ("node2");
+    assert (node2);
+    //  Set inproc endpoint for this node
+    rc = zyre_set_endpoint (node2, "inproc://zyre-node2");
+    assert (rc == 0);
+    //  Set up gossip network for this node
+    zyre_gossip_connect (node2, "inproc://gossip-hub");
+    rc = zyre_start (node2);
+    assert (rc == 0);
+    
+    //  Join topology
+    zyre_join (node1, "GLOBAL");
+    zyre_join (node2, "GLOBAL");
+    
+    //  Give time for them to interconnect
+    zclock_sleep (500);
+    
+    //  Setup zelection
+    zelection_t *node1_election = zelection_new (node1);
+    zelection_t *node2_election = zelection_new (node2);
+    assert (node1_election);
+    assert (node2_election);
+    
+    zelection_start (node1_election);
+    
+    zyre_event_t *event = NULL;
+    do {
+        event = zyre_event_new (node2);
+        if (!streq (zyre_event_type (event), "WHISPER"))
+            zyre_event_destroy (&event);
+        else
+            break;
+    } while (1);
+    char *type = zmsg_popstr (zyre_event_msg (event));
+    assert (streq (type, "ZLE"));
+    zstr_free (&type);
+    rc = zelection_recv (node2_election, event);
+    assert (rc == 1);
+    
+    do {
+        event = zyre_event_new (node1);
+        if (!streq (zyre_event_type (event), "WHISPER"))
+            zyre_event_destroy (&event);
+        else
+            break;
+    } while (1);
+    type = zmsg_popstr (zyre_event_msg (event));
+    assert (streq (type, "ZLE"));
+    zstr_free (&type);
+    rc = zelection_recv (node1_election, event);
+    assert (rc == 1);
+    
+    do {
+        event = zyre_event_new (node2);
+        if (!streq (zyre_event_type (event), "WHISPER"))
+            zyre_event_destroy (&event);
+        else
+            break;
+    } while (1);
+    type = zmsg_popstr (zyre_event_msg (event));
+    assert (streq (type, "ZLE"));
+    zstr_free (&type);
+    rc = zelection_recv (node2_election, event);
+    assert (rc == 0);
+    
+    do {
+        event = zyre_event_new (node1);
+        if (!streq (zyre_event_type (event), "WHISPER"))
+            zyre_event_destroy (&event);
+        else
+            break;
+    } while (1);
+    type = zmsg_popstr (zyre_event_msg (event));
+    assert (streq (type, "ZLE"));
+    zstr_free (&type);
+    rc = zelection_recv (node1_election, event);
+    assert (rc == 0);
+    
+    //  Cleanup
+    zelection_destroy (&node1_election);
+    zelection_destroy (&node2_election);
+    
+    zyre_stop (node1);
+    zyre_stop (node2);
+    
+    zyre_destroy (&node1);
+    zyre_destroy (&node2);
+```
 

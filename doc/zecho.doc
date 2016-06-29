@@ -6,6 +6,12 @@ Please add @discuss section in ../src/zecho.c.
 
 This is the class interface:
 
+```h
+    
+    // Handle INFORM or COLLECT  messages
+    typedef zmsg_t * (zecho_handle_fn) (
+        void *self, zmsg_t *msg);
+    
     //  Create a new zecho
     ZLOG_EXPORT zecho_t *
         zecho_new (zyre_t *node);
@@ -19,16 +25,18 @@ This is the class interface:
         zecho_init (zecho_t *self);
     
     //  Handle a received echo token
-    ZLOG_EXPORT void
+    ZLOG_EXPORT int
         zecho_recv (zecho_t *self, zyre_event_t *token);
     
     //  Self test of this class
     ZLOG_EXPORT void
         zecho_test (bool verbose);
     
+```
 
 This is the class self test code:
 
+```c
     int rc;
     //  Init zyre nodes
     zyre_t *node1 = zyre_new ("node1");
@@ -94,6 +102,9 @@ This is the class self test code:
         else
             break;
     } while (1);
+    char *type = zmsg_popstr (zyre_event_msg (event));
+    assert (streq (type, "ZE"));
+    zstr_free (&type);
     zecho_recv (echo2, event);
     
     do {
@@ -103,6 +114,9 @@ This is the class self test code:
         else
             break;
     } while (1);
+    type = zmsg_popstr (zyre_event_msg (event));
+    assert (streq (type, "ZE"));
+    zstr_free (&type);
     zecho_recv (echo3, event);
     
     do {
@@ -112,6 +126,9 @@ This is the class self test code:
         else
             break;
     } while (1);
+    type = zmsg_popstr (zyre_event_msg (event));
+    assert (streq (type, "ZE"));
+    zstr_free (&type);
     zecho_recv (echo2, event);
     
     do {
@@ -121,6 +138,9 @@ This is the class self test code:
         else
             break;
     } while (1);
+    type = zmsg_popstr (zyre_event_msg (event));
+    assert (streq (type, "ZE"));
+    zstr_free (&type);
     zecho_recv (echo1, event);
     
     // Print result
@@ -141,10 +161,5 @@ This is the class self test code:
     zyre_destroy (&node2);
     zyre_destroy (&node3);
     
-    zsock_t *logger = zsock_new_push (">tcp://127.0.0.1:24555");
-    assert (logger);
-    zstr_send (logger, "blub bla");
-    zclock_sleep (1000);
-    zsock_destroy (&logger);
-    
+```
 

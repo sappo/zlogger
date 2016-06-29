@@ -8,6 +8,11 @@ zecho - Implements the echo algorithms
 SYNOPSIS
 --------
 ----
+
+// Handle INFORM or COLLECT  messages
+typedef zmsg_t * (zecho_handle_fn) (
+    void *self, zmsg_t *msg);
+
 //  Create a new zecho
 ZLOG_EXPORT zecho_t *
     zecho_new (zyre_t *node);
@@ -21,7 +26,7 @@ ZLOG_EXPORT void
     zecho_init (zecho_t *self);
 
 //  Handle a received echo token
-ZLOG_EXPORT void
+ZLOG_EXPORT int
     zecho_recv (zecho_t *self, zyre_event_t *token);
 
 //  Self test of this class
@@ -106,6 +111,9 @@ do {
     else
         break;
 } while (1);
+char *type = zmsg_popstr (zyre_event_msg (event));
+assert (streq (type, "ZE"));
+zstr_free (&type);
 zecho_recv (echo2, event);
 
 do {
@@ -115,6 +123,9 @@ do {
     else
         break;
 } while (1);
+type = zmsg_popstr (zyre_event_msg (event));
+assert (streq (type, "ZE"));
+zstr_free (&type);
 zecho_recv (echo3, event);
 
 do {
@@ -124,6 +135,9 @@ do {
     else
         break;
 } while (1);
+type = zmsg_popstr (zyre_event_msg (event));
+assert (streq (type, "ZE"));
+zstr_free (&type);
 zecho_recv (echo2, event);
 
 do {
@@ -133,6 +147,9 @@ do {
     else
         break;
 } while (1);
+type = zmsg_popstr (zyre_event_msg (event));
+assert (streq (type, "ZE"));
+zstr_free (&type);
 zecho_recv (echo1, event);
 
 // Print result
@@ -152,11 +169,5 @@ zyre_stop (node3);
 zyre_destroy (&node1);
 zyre_destroy (&node2);
 zyre_destroy (&node3);
-
-zsock_t *logger = zsock_new_push (">tcp://127.0.0.1:24555");
-assert (logger);
-zstr_send (logger, "blub bla");
-zclock_sleep (1000);
-zsock_destroy (&logger);
 
 ----

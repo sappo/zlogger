@@ -1,25 +1,26 @@
-Name(7)
-=======
-
+zlogger(1)
+==========
 
 NAME
 ----
-zlogger - an open-source framework for causality logs
-
+zlogger - zlogger prototyp
 
 SYNOPSIS
 --------
 ----
-#include <zlogger.h>
-
-cc ['flags'] 'files' -lzlog ['libraries']
+Please add @interface section in ../src/zlogger.c.
 ----
-
 
 DESCRIPTION
 -----------
 
-Classes
-~~~~~~~
+zlogger - zlogger prototyp
 
-Something.
+Please add @discuss section in ../src/zlogger.c.
+
+EXAMPLE
+-------
+.From zlogger_test method
+----
+Please add @selftest section in ../src/zlogger.c.
+----
