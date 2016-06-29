@@ -253,6 +253,35 @@ zvector_to_string (zvector_t *self)
 }
 
 
+zvector_t *
+zvector_from_string (char *clock_string)
+{
+  assert (clock_string);
+
+  zvector_t *ret = zvector_new ("0");
+  char *pid_ptr = NULL;
+  char *val_ptr = NULL;
+
+  //formation: 'VC:$numberOfClocks;$pid1,$val1;...;$pidx,$valx;\0'
+  val_ptr = strtok(clock_string, ":");
+  val_ptr = strtok(NULL, ";");
+
+  int numberOfEntries = strtoul(val_ptr, NULL, 10);
+
+  for (int i=0; i<numberOfEntries; i++) {
+    pid_ptr = strtok(NULL, ",");
+    val_ptr = strtok(NULL, ";");
+    unsigned long *clock_value = (unsigned long *) zmalloc (sizeof (unsigned long));
+    *clock_value = strtoul(val_ptr, NULL, 10);
+
+    zhashx_insert (ret->clock, pid_ptr, clock_value);
+  }
+
+
+  return ret;
+}
+
+
 //  --------------------------------------------------------------------------
 //  Prints the zvector for debug purposes
 
@@ -397,13 +426,13 @@ zvector_test (bool verbose)
     zvector_destroy (&test4_self);
 
 
-    // Simple to_string test
+    // Simple test for converting a zvector to stringrepresentation
+    // and from stringrepresentation to a zvector
     zvector_t *test5_self = zvector_new ("1000");
     assert (test5_self);
 
     // inserting some clocks & values
     zvector_event (test5_self);
-
     unsigned long *test5_inserted_value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
     *test5_inserted_value1 = 7;
     zhashx_insert (test5_self->clock, "1222", test5_inserted_value1);
@@ -414,8 +443,17 @@ zvector_test (bool verbose)
     char *test5_string = zvector_to_string (test5_self);
     assert (streq (test5_string, "VC:3;1000,1;1222,7;1444,11;"));
 
+    zvector_t *test5_generated = zvector_from_string (test5_string);
+    unsigned long *test5_found_value1 = (unsigned long *) zhashx_lookup (test5_generated->clock, "1000");
+    assert (*test5_found_value1 == 1);
+    test5_found_value1 = (unsigned long *) zhashx_lookup (test5_generated->clock, "1222");
+    assert (*test5_found_value1 == 7);
+    test5_found_value1 = (unsigned long *) zhashx_lookup (test5_generated->clock, "1444");
+    assert (*test5_found_value1 == 11);
+
     zstr_free (&test5_string);
     zvector_destroy (&test5_self);
+    zvector_destroy (&test5_generated);
 
     //  @end
     printf ("OK\n");
