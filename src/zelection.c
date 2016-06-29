@@ -192,6 +192,7 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
         //  Initiate or re-initiate leader election
         if (!self->caw || strcmp (r, self->caw) < 0) {
             zstr_free (&self->caw);     //  Free caw when re-initiated
+            zstr_free (&self->father);  //  Free father when re-initiated
             self->caw = strdup (r);
             self->erec = 0;
             self->father = strdup (zyre_event_peer_uuid (event));
