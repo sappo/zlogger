@@ -133,6 +133,7 @@ zmsg_t *
 zvector_send_prepare (zvector_t *self, zmsg_t *msg)
 {
     assert (self);
+    assert (msg);
 
     zvector_event (self);
     zframe_t *packed_clock = zhashx_pack_own (self->clock, s_serialize_clock_value);
@@ -148,6 +149,7 @@ void
 zvector_recv (zvector_t *self, zmsg_t *msg)
 {
     assert (self);
+    assert (msg);
 
     zframe_t *packed_clock = zmsg_pop (msg);
     zhashx_t *sender_clock = zhashx_unpack_own (packed_clock, s_deserialize_clock_value);
@@ -274,7 +276,6 @@ zvector_print (zvector_t *self)
 }
 
 
-
 //  --------------------------------------------------------------------------
 //  Self test of this class
 
@@ -292,7 +293,6 @@ zvector_test (bool verbose)
 
     zhashx_destroy (&test1_sender_clock);
     zvector_destroy (&test1_self);
-
 
 
     //  Simple event test
@@ -372,6 +372,7 @@ zvector_test (bool verbose)
     zhashx_destroy (&test3_sender_clock2);
     zvector_destroy (&test3_self_clock);
 
+
     // Simple send_prepare test
     zvector_t *test4_self = zvector_new ("1231");
     assert (test4_self);
@@ -396,7 +397,6 @@ zvector_test (bool verbose)
     zvector_destroy (&test4_self);
 
 
-
     // Simple to_string test
     zvector_t *test5_self = zvector_new ("1000");
     assert (test5_self);
@@ -416,7 +416,6 @@ zvector_test (bool verbose)
 
     zstr_free (&test5_string);
     zvector_destroy (&test5_self);
-
 
     //  @end
     printf ("OK\n");
