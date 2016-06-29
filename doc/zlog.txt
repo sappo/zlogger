@@ -49,30 +49,43 @@ EXAMPLE
 -------
 .From zlog_test method
 ----
-//  Simple create/destroy test
 char *params1[3] = {"inproc://logger1", "logger1", "GOSSIP MASTER"};
 zactor_t *zlog = zactor_new (zlog_actor, params1);
 
 char *params2[3] = {"inproc://logger2", "logger2", "GOSSIP SLAVE"};
 zactor_t *zlog2 = zactor_new (zlog_actor, params2);
 
+char *params3[3] = {"inproc://logger3", "logger3", "GOSSIP SLAVE"};
+zactor_t *zlog3 = zactor_new (zlog_actor, params3);
+
+char *params4[3] = {"inproc://logger4", "logger4", "GOSSIP SLAVE"};
+zactor_t *zlog4 = zactor_new (zlog_actor, params4);
+
 if (verbose) {
     zstr_send (zlog, "VERBOSE");
     zstr_send (zlog2, "VERBOSE");
+    zstr_send (zlog3, "VERBOSE");
+    zstr_send (zlog4, "VERBOSE");
 }
 
 zstr_send (zlog, "START");
 zstr_send (zlog2, "START");
+zstr_send (zlog3, "START");
+zstr_send (zlog4, "START");
 
-//  Give time to interconnect
-zclock_sleep (250);
+//  Give time to interconnect and elect
+zclock_sleep (750);
 
 zstr_send (zlog, "STOP");
 zstr_send (zlog2, "STOP");
+zstr_send (zlog3, "STOP");
+zstr_send (zlog4, "STOP");
 
 //  Give time to disconnect
 zclock_sleep (250);
 
 zactor_destroy (&zlog);
 zactor_destroy (&zlog2);
+zactor_destroy (&zlog3);
+zactor_destroy (&zlog4);
 ----

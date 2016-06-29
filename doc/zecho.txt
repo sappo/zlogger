@@ -29,6 +29,10 @@ ZLOG_EXPORT void
 ZLOG_EXPORT int
     zecho_recv (zecho_t *self, zyre_event_t *token);
 
+//  Enable/disable verbose logging.
+ZLOG_EXPORT void
+    zecho_set_verbose (zecho_t *self, bool verbose);
+
 //  Self test of this class
 ZLOG_EXPORT void
     zecho_test (bool verbose);
@@ -82,6 +86,9 @@ assert (rc == 0);
 zecho_t *echo1 = zecho_new (node1);
 zecho_t *echo2 = zecho_new (node2);
 zecho_t *echo3 = zecho_new (node3);
+zecho_set_verbose (echo1, verbose);
+zecho_set_verbose (echo2, verbose);
+zecho_set_verbose (echo3, verbose);
 
 //  Join topology
 zyre_join (node1, "GLOBAL");
@@ -92,12 +99,14 @@ zyre_join (node3, "LOCAL");
 //  Give time for them to interconnect
 zclock_sleep (500);
 
-zyre_dump (node1);
-zclock_sleep (150);
-zyre_dump (node2);
-zclock_sleep (150);
-zyre_dump (node3);
-zclock_sleep (150);
+if (verbose) {
+    zyre_dump (node1);
+    zclock_sleep (50);
+    zyre_dump (node2);
+    zclock_sleep (50);
+    zyre_dump (node3);
+    zclock_sleep (50);
+}
 
 zecho_init (echo1);
 zclock_sleep (500);
@@ -152,10 +161,12 @@ assert (streq (type, "ZE"));
 zstr_free (&type);
 zecho_recv (echo1, event);
 
-// Print result
-zecho_print (echo1);
-zecho_print (echo2);
-zecho_print (echo3);
+if (verbose) {
+    // Print result
+    zecho_print (echo1);
+    zecho_print (echo2);
+    zecho_print (echo3);
+}
 
 //  Cleanup
 zecho_destroy (&echo1);

@@ -23,12 +23,13 @@
 **<a href="#toc3-143">Linking with an Application</a>**
 
 **<a href="#toc3-150">API Summary</a>**
-*  <a href="#toc4-155">zecho - Implements the echo algorithms</a>
-*  <a href="#toc4-321">zvector - Implements a dynamic vector clock</a>
+*  <a href="#toc4-155">zlog - zlog actor</a>
+*  <a href="#toc4-239">zecho - Implements the echo algorithms</a>
+*  <a href="#toc4-416">zvector - Implements a dynamic vector clock</a>
 
-**<a href="#toc3-486">Hints to Contributors</a>**
+**<a href="#toc3-587">Hints to Contributors</a>**
 
-**<a href="#toc3-497">This Document</a>**
+**<a href="#toc3-598">This Document</a>**
 
 <A name="toc2-13" title="Overview" />
 ## Overview
@@ -172,7 +173,91 @@ Include `zlogger.h` in your application and link with libzlogger. Here is a typi
 
 This is the API provided by Zlogger 0.x, in alphabetical order.
 
-<A name="toc4-155" title="zecho - Implements the echo algorithms" />
+<A name="toc4-155" title="zlog - zlog actor" />
+#### zlog - zlog actor
+
+zlog - zlog actor
+
+Please add @discuss section in ../src/zlog.c.
+
+This is the class interface:
+
+```h
+    //  Create new zlog actor instance.
+    //  @TODO: Describe the purpose of this actor!
+    //
+    //      zactor_t *zlog = zactor_new (zlog, NULL);
+    //
+    //  Destroy zlog instance.
+    //
+    //      zactor_destroy (&zlog);
+    //
+    //  Enable verbose logging of commands and activity:
+    //
+    //      zstr_send (zlog, "VERBOSE");
+    //
+    //  Start zlog actor.
+    //
+    //      zstr_sendx (zlog, "START", NULL);
+    //
+    //  Stop zlog actor.
+    //
+    //      zstr_sendx (zlog, "STOP", NULL);
+    //
+    //  This is the zlog constructor as a zactor_fn;
+    ZLOG_EXPORT void
+        zlog_actor (zsock_t *pipe, void *args);
+    
+    //  Self test of this actor
+    ZLOG_EXPORT void
+        zlog_test (bool verbose);
+```
+
+This is the class self test code:
+
+```c
+    char *params1[3] = {"inproc://logger1", "logger1", "GOSSIP MASTER"};
+    zactor_t *zlog = zactor_new (zlog_actor, params1);
+    
+    char *params2[3] = {"inproc://logger2", "logger2", "GOSSIP SLAVE"};
+    zactor_t *zlog2 = zactor_new (zlog_actor, params2);
+    
+    char *params3[3] = {"inproc://logger3", "logger3", "GOSSIP SLAVE"};
+    zactor_t *zlog3 = zactor_new (zlog_actor, params3);
+    
+    char *params4[3] = {"inproc://logger4", "logger4", "GOSSIP SLAVE"};
+    zactor_t *zlog4 = zactor_new (zlog_actor, params4);
+    
+    if (verbose) {
+        zstr_send (zlog, "VERBOSE");
+        zstr_send (zlog2, "VERBOSE");
+        zstr_send (zlog3, "VERBOSE");
+        zstr_send (zlog4, "VERBOSE");
+    }
+    
+    zstr_send (zlog, "START");
+    zstr_send (zlog2, "START");
+    zstr_send (zlog3, "START");
+    zstr_send (zlog4, "START");
+    
+    //  Give time to interconnect and elect
+    zclock_sleep (750);
+    
+    zstr_send (zlog, "STOP");
+    zstr_send (zlog2, "STOP");
+    zstr_send (zlog3, "STOP");
+    zstr_send (zlog4, "STOP");
+    
+    //  Give time to disconnect
+    zclock_sleep (250);
+    
+    zactor_destroy (&zlog);
+    zactor_destroy (&zlog2);
+    zactor_destroy (&zlog3);
+    zactor_destroy (&zlog4);
+```
+
+<A name="toc4-239" title="zecho - Implements the echo algorithms" />
 #### zecho - Implements the echo algorithms
 
 zecho - Implements the echo algorithms
@@ -202,6 +287,10 @@ This is the class interface:
     //  Handle a received echo token
     ZLOG_EXPORT int
         zecho_recv (zecho_t *self, zyre_event_t *token);
+    
+    //  Enable/disable verbose logging.
+    ZLOG_EXPORT void
+        zecho_set_verbose (zecho_t *self, bool verbose);
     
     //  Self test of this class
     ZLOG_EXPORT void
@@ -248,6 +337,9 @@ This is the class self test code:
     zecho_t *echo1 = zecho_new (node1);
     zecho_t *echo2 = zecho_new (node2);
     zecho_t *echo3 = zecho_new (node3);
+    zecho_set_verbose (echo1, verbose);
+    zecho_set_verbose (echo2, verbose);
+    zecho_set_verbose (echo3, verbose);
     
     //  Join topology
     zyre_join (node1, "GLOBAL");
@@ -258,12 +350,14 @@ This is the class self test code:
     //  Give time for them to interconnect
     zclock_sleep (500);
     
-    zyre_dump (node1);
-    zclock_sleep (150);
-    zyre_dump (node2);
-    zclock_sleep (150);
-    zyre_dump (node3);
-    zclock_sleep (150);
+    if (verbose) {
+        zyre_dump (node1);
+        zclock_sleep (50);
+        zyre_dump (node2);
+        zclock_sleep (50);
+        zyre_dump (node3);
+        zclock_sleep (50);
+    }
     
     zecho_init (echo1);
     zclock_sleep (500);
@@ -318,10 +412,12 @@ This is the class self test code:
     zstr_free (&type);
     zecho_recv (echo1, event);
     
-    // Print result
-    zecho_print (echo1);
-    zecho_print (echo2);
-    zecho_print (echo3);
+    if (verbose) {
+        // Print result
+        zecho_print (echo1);
+        zecho_print (echo2);
+        zecho_print (echo3);
+    }
     
     //  Cleanup
     zecho_destroy (&echo1);
@@ -338,7 +434,7 @@ This is the class self test code:
     
 ```
 
-<A name="toc4-321" title="zvector - Implements a dynamic vector clock" />
+<A name="toc4-416" title="zvector - Implements a dynamic vector clock" />
 #### zvector - Implements a dynamic vector clock
 
 zvector - Implements a dynamic vector clock
@@ -375,7 +471,6 @@ This is the class self test code:
     zvector_destroy (&test1_self);
     
     
-    
     //  Simple event test
     zvector_t *test2_self = zvector_new ("1231");
     assert (test2_self);
@@ -399,7 +494,6 @@ This is the class self test code:
     
     zhashx_destroy (&test2_sender_clock1);
     zvector_destroy (&test2_self);
-    
     
     
     //  Simple recv test
@@ -445,7 +539,7 @@ This is the class self test code:
     zmsg_destroy (&test3_msg2);
     unsigned long *test3_found_value3 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1231");
     assert (*test3_found_value3 == 20);
-    test3_found_value2 = (unsigned long*) zhashx_lookup (test3_self_clock->clock, "1232");
+    test3_found_value2 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1232");
     assert (*test3_found_value2 == 10);
     unsigned long *test3_found_value4 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1233");
     assert (*test3_found_value4 == 30);
@@ -453,6 +547,7 @@ This is the class self test code:
     zhashx_destroy (&test3_sender_clock1);
     zhashx_destroy (&test3_sender_clock2);
     zvector_destroy (&test3_self_clock);
+    
     
     // Simple send_prepare test
     zvector_t *test4_self = zvector_new ("1231");
@@ -478,14 +573,13 @@ This is the class self test code:
     zvector_destroy (&test4_self);
     
     
-    
-    // Simple toString test
+    // Simple test for converting a zvector to stringrepresentation
+    // and from stringrepresentation to a zvector
     zvector_t *test5_self = zvector_new ("1000");
     assert (test5_self);
     
-    // inserting sime clocks & values
+    // inserting some clocks & values
     zvector_event (test5_self);
-    
     unsigned long *test5_inserted_value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
     *test5_inserted_value1 = 7;
     zhashx_insert (test5_self->clock, "1222", test5_inserted_value1);
@@ -493,17 +587,25 @@ This is the class self test code:
     *test5_inserted_value2 = 11;
     zhashx_insert (test5_self->clock, "1444", test5_inserted_value2);
     
-    char *test5_string = zvector_toString (test5_self);
+    char *test5_string = zvector_to_string (test5_self);
     assert (streq (test5_string, "VC:3;1000,1;1222,7;1444,11;"));
+    
+    zvector_t *test5_generated = zvector_from_string (test5_string);
+    unsigned long *test5_found_value1 = (unsigned long *) zhashx_lookup (test5_generated->clock, "1000");
+    assert (*test5_found_value1 == 1);
+    test5_found_value1 = (unsigned long *) zhashx_lookup (test5_generated->clock, "1222");
+    assert (*test5_found_value1 == 7);
+    test5_found_value1 = (unsigned long *) zhashx_lookup (test5_generated->clock, "1444");
+    assert (*test5_found_value1 == 11);
     
     zstr_free (&test5_string);
     zvector_destroy (&test5_self);
-    
+    zvector_destroy (&test5_generated);
     
 ```
 
 
-<A name="toc3-486" title="Hints to Contributors" />
+<A name="toc3-587" title="Hints to Contributors" />
 ### Hints to Contributors
 
 Zlogger is a nice, neat library, and you may not immediately appreciate why. Read the CLASS style guide please, and write your code to make it indistinguishable from the rest of the code in the library. That is the only real criteria for good style: it's invisible.
@@ -514,7 +616,7 @@ Do read your code after you write it and ask, "Can I make this simpler?" We do u
 
 Before opening a pull request read our [contribution guidelines](https://github.com/zeromq/zlogger/blob/master/CONTRIBUTING.md). Thanks!
 
-<A name="toc3-497" title="This Document" />
+<A name="toc3-598" title="This Document" />
 ### This Document
 
 _This documentation was generated from zlogger/README.txt using [Gitdown](https://github.com/zeromq/gitdown)_
