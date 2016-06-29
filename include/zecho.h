@@ -40,6 +40,10 @@ ZLOG_EXPORT void
 ZLOG_EXPORT int
     zecho_recv (zecho_t *self, zyre_event_t *token);
 
+//  Enable/disable verbose logging.
+ZLOG_EXPORT void
+    zecho_set_verbose (zecho_t *self, bool verbose);
+
 //  Self test of this class
 ZLOG_EXPORT void
     zecho_test (bool verbose);

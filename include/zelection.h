@@ -26,6 +26,23 @@ ZLOG_EXPORT zelection_t *
 ZLOG_EXPORT void
     zelection_destroy (zelection_t **self_p);
 
+//  Initiate election
+ZLOG_EXPORT void
+    zelection_start (zelection_t *self);
+
+//  Handle received election and leader messages. Return 1 if election is
+//  still in progress, 0 if election is concluded and -1 is an error occurred.
+ZLOG_EXPORT int
+    zelection_recv (zelection_t *self, zyre_event_t *event);
+
+//  Enable/disable verbose logging.
+ZLOG_EXPORT void
+    zelection_set_verbose (zelection_t *self, bool verbose);
+
+//  Print election status to command line
+ZLOG_EXPORT void
+    zelection_print (zelection_t *self);
+
 //  Self test of this class
 ZLOG_EXPORT void
     zelection_test (bool verbose);

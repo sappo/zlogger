@@ -169,7 +169,8 @@ zelection_start (zelection_t *self)
 
     //  Send election message to all neighbors
     s_send_to (self, election_msg, s_neighbors (self, true));
-    zsys_info ("ELECTION started by %s\n", zyre_uuid (self->node));
+    if (self->verbose)
+        zsys_info ("ELECTION started by %s\n", zyre_uuid (self->node));
 }
 
 
@@ -187,9 +188,10 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
     char *type = zmsg_popstr (msg);
     char *r = zmsg_popstr (msg);
 
-    if (streq(type, "ELECTION")) {
+    if (streq (type, "ELECTION")) {
         //  Initiate or re-initiate leader election
         if (!self->caw || strcmp (r, self->caw) < 0) {
+            zstr_free (&self->caw);     //  Free caw when re-initiated
             self->caw = strdup (r);
             self->erec = 0;
             self->father = strdup (zyre_event_peer_uuid (event));
@@ -201,7 +203,8 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
 
             //  Send election message to all neighbors but father but father
             s_send_to (self, election_msg, s_neighbors (self, false));
-            zsys_info ("Initialise election %s\n", zyre_uuid (self->node));
+            if (self->verbose)
+                zsys_info ("Initialise election %s\n", zyre_uuid (self->node));
         }
 
         //  Participate in current active wave
@@ -216,7 +219,8 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
 
                     //  Send leader message to all neighbors
                     s_send_to (self, leader_msg, s_neighbors (self, true));
-                    zsys_info ("LEADER decision by %s\n", zyre_uuid (self->node));
+                    if (self->verbose)
+                        zsys_info ("LEADER decision by %s\n", zyre_uuid (self->node));
                 }
                 else {
                     zmsg_t *election_msg = zmsg_new ();
@@ -226,7 +230,8 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
 
                     //  Send election message to father
                     zyre_whisper (self->node, self->father, &election_msg);
-                    zsys_info ("Echo wave to father %s\n", zyre_uuid (self->node));
+                    if (self->verbose)
+                        zsys_info ("Echo wave to father %s\n", zyre_uuid (self->node));
                 }
             }
         }
@@ -242,9 +247,11 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
 
             //  Send leader message to all neighbors
             s_send_to (self, leader_msg, s_neighbors (self, true));
-            zsys_info ("Propagate LEADER by %s\n", zyre_uuid (self->node));
+            if (self->verbose)
+                zsys_info ("Propagate LEADER by %s\n", zyre_uuid (self->node));
         }
         self->lrec++;
+        zstr_free (&self->leader);
         self->leader = strdup (r);
     }
 
@@ -254,11 +261,23 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
 
     if (self->lrec == s_neighbors_count (self)) {
         self->state = streq (self->leader, zyre_uuid (self->node));
-        printf ("Done %s, %s!\n", zyre_uuid (self->node), self->state? "true": "false");
+        if (self->verbose)
+            zsys_info ("Election finished %s, %s!\n", zyre_uuid (self->node), self->state? "true": "false");
         return 0;
     }
     else
         return 1;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Enable/disable verbose logging.
+
+void
+zelection_set_verbose (zelection_t *self, bool verbose)
+{
+    assert (self);
+    self->verbose = verbose;
 }
 
 
@@ -286,9 +305,10 @@ void
 zelection_test (bool verbose)
 {
     printf (" * zelection: ");
+    if (verbose)
+        printf ("\n");
 
     //  @selftest
-    //  Simple create/destroy test
     int rc;
     //  Init zyre nodes
     zyre_t *node1 = zyre_new ("node1");
@@ -323,6 +343,8 @@ zelection_test (bool verbose)
     zelection_t *node2_election = zelection_new (node2);
     assert (node1_election);
     assert (node2_election);
+    zelection_set_verbose (node1_election, verbose);
+    zelection_set_verbose (node2_election, verbose);
 
     zelection_start (node1_election);
 

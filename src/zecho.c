@@ -23,16 +23,17 @@
 //  Structure of our class
 
 struct _zecho_t {
-    unsigned int recv_msg;     //  Counts the number of received mesages.
-    char *father;     //  Father in the echo wave
-    char *wave_id;    //  Id of the current wave
+    unsigned int recv_msg;      //  Counts the number of received mesages.
+    char *father;               //  Father in the echo wave
+    char *wave_id;              //  Id of the current wave
 
     zecho_handle_fn *inform_fn;     //  Handler for inform messages
     void *inform_handler;           //  Inform handler object
     zecho_handle_fn *collect_fn;    //  Handler for collect messages
     void *collect_handler;          //  Collect handler object
 
-    zyre_t *node;     //  Own zyre handle
+    zyre_t *node;       //  Own zyre handle
+    bool verbose;       //  verbose logging?
 };
 
 
@@ -85,9 +86,10 @@ zecho_init (zecho_t *self)
     zlist_t *groups = zyre_own_groups (self->node);
     const char *group = (const char *) zlist_first (groups);
     while (group) {
-        printf("Send to group: %s\n", group);
         zlist_t *neighbors = zyre_peers_by_group (self->node, group);
-        printf("Neighbors in group: %lu\n", zlist_size (neighbors));
+        if (self->verbose)
+            zsys_info ("Send to group: %s (%lu)\n", group, zlist_size (neighbors));
+
         char *neighbor = (char *) zlist_first (neighbors);
         while (neighbor) {
             if (!streq (neighbor, self->father)) {
@@ -172,7 +174,9 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
                     }
                     //  Send INFORM message to neighbor
                     zyre_whisper (self->node, neighbor, &inform_msg);
-                    printf ("Forward to %s in group %s\n", neighbor, group);
+                    if (self->verbose)
+                        zsys_info ("Forward to %s in group %s\n", neighbor, group);
+
                 }
                 //  Get next item in list
                 neighbor = (char *) zlist_next (neighbors);
@@ -192,7 +196,9 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
             if (self->collect_fn) {
                 (void *) self->collect_fn (self->collect_handler, zyre_event_get_msg (token));
             }
-            printf("Decide\n");
+            if (self->verbose)
+                zsys_info ("Decide\n");
+
         }
         else {
             zmsg_t *collect_msg = zmsg_new ();
@@ -205,7 +211,9 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
             }
             //  Send COLLECT message to father
             zyre_whisper (self->node, self->father, &collect_msg);
-            printf("Send to father\n");
+            if (self->verbose)
+                zsys_info ("Send to father\n");
+
         }
     }
 
@@ -222,6 +230,17 @@ zecho_wave_id (zecho_t *self)
 {
     assert (self);
     return self->wave_id;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Enable/disable verbose logging.
+
+void
+zecho_set_verbose (zecho_t *self, bool verbose)
+{
+    assert (self);
+    self->verbose = verbose;
 }
 
 
@@ -246,6 +265,8 @@ void
 zecho_test (bool verbose)
 {
     printf (" * zecho: ");
+    if (verbose)
+        printf ("\n");
 
     //  @selftest
     int rc;
@@ -284,6 +305,9 @@ zecho_test (bool verbose)
     zecho_t *echo1 = zecho_new (node1);
     zecho_t *echo2 = zecho_new (node2);
     zecho_t *echo3 = zecho_new (node3);
+    zecho_set_verbose (echo1, verbose);
+    zecho_set_verbose (echo2, verbose);
+    zecho_set_verbose (echo3, verbose);
 
     //  Join topology
     zyre_join (node1, "GLOBAL");
@@ -294,12 +318,14 @@ zecho_test (bool verbose)
     //  Give time for them to interconnect
     zclock_sleep (500);
 
-    zyre_dump (node1);
-    zclock_sleep (150);
-    zyre_dump (node2);
-    zclock_sleep (150);
-    zyre_dump (node3);
-    zclock_sleep (150);
+    if (verbose) {
+        zyre_dump (node1);
+        zclock_sleep (50);
+        zyre_dump (node2);
+        zclock_sleep (50);
+        zyre_dump (node3);
+        zclock_sleep (50);
+    }
 
     zecho_init (echo1);
     zclock_sleep (500);
@@ -354,10 +380,12 @@ zecho_test (bool verbose)
     zstr_free (&type);
     zecho_recv (echo1, event);
 
-    // Print result
-    zecho_print (echo1);
-    zecho_print (echo2);
-    zecho_print (echo3);
+    if (verbose) {
+        // Print result
+        zecho_print (echo1);
+        zecho_print (echo2);
+        zecho_print (echo3);
+    }
 
     //  Cleanup
     zecho_destroy (&echo1);
