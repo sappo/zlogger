@@ -43,7 +43,6 @@ zhashx_destroy (&test1_sender_clock);
 zvector_destroy (&test1_self);
 
 
-
 //  Simple event test
 zvector_t *test2_self = zvector_new ("1231");
 assert (test2_self);
@@ -67,7 +66,6 @@ assert (*test2_self_sender_clock_value == 5);
 
 zhashx_destroy (&test2_sender_clock1);
 zvector_destroy (&test2_self);
-
 
 
 //  Simple recv test
@@ -113,7 +111,7 @@ zvector_recv (test3_self_clock, test3_msg2);
 zmsg_destroy (&test3_msg2);
 unsigned long *test3_found_value3 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1231");
 assert (*test3_found_value3 == 20);
-test3_found_value2 = (unsigned long*) zhashx_lookup (test3_self_clock->clock, "1232");
+test3_found_value2 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1232");
 assert (*test3_found_value2 == 10);
 unsigned long *test3_found_value4 = (unsigned long *) zhashx_lookup (test3_self_clock->clock, "1233");
 assert (*test3_found_value4 == 30);
@@ -121,6 +119,7 @@ assert (*test3_found_value4 == 30);
 zhashx_destroy (&test3_sender_clock1);
 zhashx_destroy (&test3_sender_clock2);
 zvector_destroy (&test3_self_clock);
+
 
 // Simple send_prepare test
 zvector_t *test4_self = zvector_new ("1231");
@@ -146,12 +145,11 @@ zmsg_destroy (&test4_zmsg);
 zvector_destroy (&test4_self);
 
 
-
-// Simple toString test
+// Simple to_string test
 zvector_t *test5_self = zvector_new ("1000");
 assert (test5_self);
 
-// inserting sime clocks & values
+// inserting some clocks & values
 zvector_event (test5_self);
 
 unsigned long *test5_inserted_value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
@@ -161,11 +159,10 @@ unsigned long *test5_inserted_value2 = (unsigned long *) zmalloc (sizeof (unsign
 *test5_inserted_value2 = 11;
 zhashx_insert (test5_self->clock, "1444", test5_inserted_value2);
 
-char *test5_string = zvector_toString (test5_self);
+char *test5_string = zvector_to_string (test5_self);
 assert (streq (test5_string, "VC:3;1000,1;1222,7;1444,11;"));
 
 zstr_free (&test5_string);
 zvector_destroy (&test5_self);
-
 
 ----

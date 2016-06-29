@@ -1,0 +1,56 @@
+zlog(3)
+=======
+
+NAME
+----
+zlog.txt - zlog actor
+
+SYNOPSIS
+--------
+----
+//  Create new zlog actor instance.
+//  @TODO: Describe the purpose of this actor!
+//
+//      zactor_t *zlog = zactor_new (zlog, NULL);
+//
+//  Destroy zlog instance.
+//
+//      zactor_destroy (&zlog);
+//
+//  Enable verbose logging of commands and activity:
+//
+//      zstr_send (zlog, "VERBOSE");
+//
+//  Start zlog actor.
+//
+//      zstr_sendx (zlog, "START", NULL);
+//
+//  Stop zlog actor.
+//
+//      zstr_sendx (zlog, "STOP", NULL);
+//
+//  This is the zlog constructor as a zactor_fn;
+ZLOG_EXPORT void
+    zlog_actor (zsock_t *pipe, void *args);
+
+//  Self test of this actor
+ZLOG_EXPORT void
+    zlog_test (bool verbose);
+----
+
+DESCRIPTION
+-----------
+
+zlog - zlog actor
+
+Please add @discuss section in ../src/zlog.c.
+
+EXAMPLE
+-------
+.From zlog_test method
+----
+//  Simple create/destroy test
+zactor_t *zlog = zactor_new (zlog_actor, NULL);
+
+zactor_destroy (&zlog);
+----

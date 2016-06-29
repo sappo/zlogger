@@ -65,6 +65,8 @@ typedef struct _zvector_t zvector_t;
 #define ZVECTOR_T_DEFINED
 typedef struct _zelection_t zelection_t;
 #define ZELECTION_T_DEFINED
+typedef struct _zlog_t zlog_t;
+#define ZLOG_T_DEFINED
 #endif // ZLOG_BUILD_DRAFT_API
 
 
@@ -73,6 +75,7 @@ typedef struct _zelection_t zelection_t;
 #include "zecho.h"
 #include "zvector.h"
 #include "zelection.h"
+#include "zlog.h"
 #endif // ZLOG_BUILD_DRAFT_API
 
 #endif

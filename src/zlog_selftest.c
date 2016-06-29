@@ -31,6 +31,7 @@ all_tests [] = {
     { "zecho", zecho_test },
     { "zvector", zvector_test },
     { "zelection", zelection_test },
+    { "zlog", zlog_test },
 #endif // ZLOG_BUILD_DRAFT_API
     {0, 0}          //  Sentinel
 };
@@ -89,7 +90,7 @@ main (int argc, char **argv)
         else
         if (streq (argv [argn], "--number")
         ||  streq (argv [argn], "-n")) {
-            puts ("3");
+            puts ("4");
             return 0;
         }
         else
@@ -99,6 +100,7 @@ main (int argc, char **argv)
             puts ("    zecho");
             puts ("    zvector");
             puts ("    zelection");
+            puts ("    zlog");
             return 0;
         }
         else

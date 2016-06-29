@@ -119,6 +119,7 @@ IF (ENABLE_DRAFTS)
         include/zecho.h
         include/zvector.h
         include/zelection.h
+        include/zlog.h
     )
 ENDIF (ENABLE_DRAFTS)
 
@@ -137,6 +138,7 @@ IF (ENABLE_DRAFTS)
         src/zecho.c
         src/zvector.c
         src/zelection.c
+        src/zlog.c
     )
 ENDIF (ENABLE_DRAFTS)
 
@@ -218,6 +220,7 @@ IF (ENABLE_DRAFTS)
     zecho
     zvector
     zelection
+    zlog
     )
 ENDIF (ENABLE_DRAFTS)
 

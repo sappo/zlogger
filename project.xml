@@ -15,4 +15,6 @@
     <class name = "zvector">Implements a dynamic vector clock</class>
     <class name = "zelection">Holds an election with all connected peers</class>
 
+    <actor name = "zlog">zlog actor</actor>
+
 </project>
