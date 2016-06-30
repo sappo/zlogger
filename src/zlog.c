@@ -56,6 +56,7 @@ zlog_new (zsock_t *pipe, void *args)
     zpoller_add (self->poller, zyre_socket (self->node));
     self->clock = zvector_new (zyre_uuid (self->node));
     self->election = zelection_new (self->node);
+    zelection_set_clock (self->election, self->clock);
 
     //  Set node endpoint
     char *endpoint = params[0];
@@ -181,6 +182,7 @@ zlog_recv_zyre (zlog_t *self)
     const char *type = zyre_event_type (event);
     if (streq (type, "WHISPER")) {
         zmsg_t *request = zyre_event_msg (event);
+        zvector_recv (self->clock, request);
         char *command = zmsg_popstr (request);
         if (streq (command, "ZLE")) {
             int rc = zelection_recv (self->election, event);
