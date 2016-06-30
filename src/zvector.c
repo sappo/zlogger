@@ -269,7 +269,6 @@ zvector_from_string (char *clock_string)
     zhashx_insert (ret->clock, pid_ptr, clock_value);
   }
 
-
   return ret;
 }
 
@@ -291,10 +290,6 @@ zvector_compare_to (zvector_t *zv_self, zvector_t *zv_other)
   unsigned long *self_value = NULL;
   unsigned long *other_value = NULL;
   const char *self_pid = NULL;
-
-
-  //LCp<LCq genau dann wenn LCp≠LCq und für alle t∈LCp[0] für welches es ein v∈LCq[0] mit t=v gibt gilt LCp(t)≤LCq(v).
-  //LCp∣∣LCq genau dann wenn für alle t∈LCp[0] kein v∈LCq[0] existiert, sodass t=v.
 
   self_value = (unsigned long *) zhashx_first (zv_self->clock);
   self_pid = (const char *) zhashx_cursor (zv_self->clock);
