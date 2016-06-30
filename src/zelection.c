@@ -31,6 +31,7 @@ struct _zelection_t {
     char *leader;       //  Leader identity
 
     zyre_t *node;       //  zyre handle (not owned!)
+    zvector_t *clock;   //  vector clock handle (not owned!)
     bool verbose;       //  verbose logging?
 };
 
@@ -53,6 +54,7 @@ zelection_new (zyre_t *node)
     self->leader = NULL;
 
     self->node = node;
+    self->clock = NULL;
     self->verbose = false;
     return self;
 }
@@ -143,6 +145,9 @@ s_send_to (zelection_t *self, zmsg_t *msg, zlist_t *peers)
     while (peer) {
         //  Send message to peer
         zmsg_t *copy = zmsg_dup (msg);
+        if (self->clock)
+            zvector_send_prepare (self->clock, copy);
+
         zyre_whisper (self->node, peer, &copy);
 
         //  Get next peer in list
@@ -229,6 +234,9 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
                     zmsg_addstr (election_msg, "ELECTION");
                     zmsg_addstr (election_msg, self->caw);
 
+                    if (self->clock)
+                        zvector_send_prepare (self->clock, election_msg);
+
                     //  Send election message to father
                     zyre_whisper (self->node, self->father, &election_msg);
                     if (self->verbose)
@@ -268,6 +276,18 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
     }
     else
         return 1;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Set a vector clock handle. Election message will be prepended with the
+//  vector if not NULL.
+
+void
+zelection_set_clock (zelection_t *self, zvector_t *clock)
+{
+    assert (self);
+    self->clock = clock;
 }
 
 
