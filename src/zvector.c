@@ -46,19 +46,7 @@ s_destroy_clock_value (void **clock_value_p)
 static char *
 s_serialize_clock_value (const void *item)
 {
-    assert (item);
-    unsigned long value = *(unsigned long *) item;
-    int length = 1;
-
-    while (value) {
-        value /= 10;
-        length++;
-    }
-
-    char *result = (char *) zmalloc (length * sizeof (char));
-    sprintf (result, "%lu", *(unsigned long *) item);
-
-    return result;
+    return zsys_sprintf ("%lu", *(unsigned long *) item);
 }
 
 
