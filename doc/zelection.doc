@@ -24,6 +24,11 @@ This is the class interface:
     ZLOG_EXPORT int
         zelection_recv (zelection_t *self, zyre_event_t *event);
     
+    //  Set a vector clock handle. Election message will be prepended with the
+    //  vector if not NULL.
+    ZLOG_EXPORT void
+        zelection_set_clock (zelection_t *self, zvector_t *clock);
+    
     //  Enable/disable verbose logging.
     ZLOG_EXPORT void
         zelection_set_verbose (zelection_t *self, bool verbose);

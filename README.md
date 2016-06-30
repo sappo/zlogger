@@ -27,9 +27,9 @@
 *  <a href="#toc4-239">zecho - Implements the echo algorithms</a>
 *  <a href="#toc4-416">zvector - Implements a dynamic vector clock</a>
 
-**<a href="#toc3-587">Hints to Contributors</a>**
+**<a href="#toc3-599">Hints to Contributors</a>**
 
-**<a href="#toc3-598">This Document</a>**
+**<a href="#toc3-610">This Document</a>**
 
 <A name="toc2-13" title="Overview" />
 ## Overview
@@ -452,6 +452,18 @@ This is the class interface:
     ZLOG_EXPORT void
         zvector_destroy (zvector_t **self_p);
     
+    //  Eventing own clock & packing vectorclock with given msg
+    ZLOG_EXPORT zmsg_t *
+        zvector_send_prepare (zvector_t *self, zmsg_t *msg);
+    
+    //  Recv the zvector & updates own vectorclock
+    ZLOG_EXPORT void
+        zvector_recv (zvector_t *self, zmsg_t *msg);
+    
+    //  Prints the zvector for debug purposes
+    ZLOG_EXPORT void
+        zvector_print (zvector_t *self);
+    
     //  Self test of this class
     ZLOG_EXPORT void
         zvector_test (bool verbose);
@@ -605,7 +617,7 @@ This is the class self test code:
 ```
 
 
-<A name="toc3-587" title="Hints to Contributors" />
+<A name="toc3-599" title="Hints to Contributors" />
 ### Hints to Contributors
 
 Zlogger is a nice, neat library, and you may not immediately appreciate why. Read the CLASS style guide please, and write your code to make it indistinguishable from the rest of the code in the library. That is the only real criteria for good style: it's invisible.
@@ -616,7 +628,7 @@ Do read your code after you write it and ask, "Can I make this simpler?" We do u
 
 Before opening a pull request read our [contribution guidelines](https://github.com/zeromq/zlogger/blob/master/CONTRIBUTING.md). Thanks!
 
-<A name="toc3-598" title="This Document" />
+<A name="toc3-610" title="This Document" />
 ### This Document
 
 _This documentation was generated from zlogger/README.txt using [Gitdown](https://github.com/zeromq/gitdown)_

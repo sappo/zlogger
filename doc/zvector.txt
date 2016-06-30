@@ -16,6 +16,18 @@ ZLOG_EXPORT zvector_t *
 ZLOG_EXPORT void
     zvector_destroy (zvector_t **self_p);
 
+//  Eventing own clock & packing vectorclock with given msg
+ZLOG_EXPORT zmsg_t *
+    zvector_send_prepare (zvector_t *self, zmsg_t *msg);
+
+//  Recv the zvector & updates own vectorclock
+ZLOG_EXPORT void
+    zvector_recv (zvector_t *self, zmsg_t *msg);
+
+//  Prints the zvector for debug purposes
+ZLOG_EXPORT void
+    zvector_print (zvector_t *self);
+
 //  Self test of this class
 ZLOG_EXPORT void
     zvector_test (bool verbose);
