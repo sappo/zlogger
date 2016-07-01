@@ -186,7 +186,7 @@ zlog_recv_zyre (zlog_t *self)
         char *command = zmsg_popstr (request);
         if (streq (command, "ZLE")) {
             int rc = zelection_recv (self->election, event);
-            if (rc == 0)
+            if (rc == 0)        //  Election is finished
                 if (self->verbose)
                     zelection_print (self->election);
         }

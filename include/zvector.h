@@ -34,6 +34,10 @@ ZLOG_EXPORT zmsg_t *
 ZLOG_EXPORT void
     zvector_recv (zvector_t *self, zmsg_t *msg);
 
+//  Log informational message - low priority. Prepends the current VC.
+ZLOG_EXPORT void
+    zvector_info (zvector_t *self, char *format, ...);
+
 //  Prints the zvector for debug purposes
 ZLOG_EXPORT void
     zvector_print (zvector_t *self);

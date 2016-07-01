@@ -79,6 +79,7 @@ zvector_new (const char *pid)
     unsigned long *clock_val = (unsigned long *) zmalloc (sizeof (unsigned long));
     *clock_val = 0;
     zhashx_insert (self->clock, pid, clock_val);
+    zsys_set_logsystem (true);
     return self;
 }
 
@@ -366,6 +367,24 @@ zvector_compare_to (zvector_t *zv_self, zvector_t *zv_other)
     return -1;
   }
 
+}
+
+
+//  --------------------------------------------------------------------------
+//  Log informational message - low priority. Prepends the current VC.
+
+void
+zvector_info (zvector_t *self, char *format, ...)
+{
+    assert (self);
+    va_list argptr;
+    va_start (argptr, format);
+    char *logmsg = zsys_vprintf (format, argptr);
+    va_end (argptr);
+    char *clockstr = zvector_to_string (self);
+    zsys_info ("/%s/ %s", clockstr, logmsg);
+    zstr_free (&logmsg);
+    zstr_free (&clockstr);
 }
 
 
