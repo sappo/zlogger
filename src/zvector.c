@@ -536,27 +536,57 @@ zvector_test (bool verbose)
 
     // Simple compare test
     char *test6_self_stringrep = zsys_sprintf ("%s", "VC:3;1000,10;2000,10;3000,10;");
-    char *test6_before_stringrep = zsys_sprintf ("%s", "VC:3;1100,10;2100,10;3000,9;");
-    char *test6_parallel_stringrep = zsys_sprintf ("%s", "VC:3;1500,10;2500,10;3500,10;");
-    char *test6_after_stringrep = zsys_sprintf ("%s", "VC:3;1200,10;2200,10;3000,11;");
+    char *test6_before_stringrep1 = zsys_sprintf ("%s", "VC:2;1100,10;3000,9;");
+    char *test6_before_stringrep2 = zsys_sprintf ("%s", "VC:3;1100,10;2100,10;3000,9;");
+    char *test6_before_stringrep3 = zsys_sprintf ("%s", "VC:4;1100,10;2100,10;3000,9;4000,9");
+    char *test6_parallel_stringrep1 = zsys_sprintf ("%s", "VC:2;1500,10;2500,10;");
+    char *test6_parallel_stringrep2 = zsys_sprintf ("%s", "VC:3;1500,10;2500,10;3500,10;");
+    char *test6_parallel_stringrep3 = zsys_sprintf ("%s", "VC:4;500,20;1500,10;2500,10;3500,10;");
+    char *test6_after_stringrep1 = zsys_sprintf ("%s", "VC:2;1000,11;2200,10;");
+    char *test6_after_stringrep2 = zsys_sprintf ("%s", "VC:3;1200,10;2200,10;3000,11;");
+    char *test6_after_stringrep3 = zsys_sprintf ("%s", "VC:4;1200,10;2200,10;3000,11;2000,11;");
     zvector_t *test6_self = zvector_from_string (test6_self_stringrep);
-    zvector_t *test6_before = zvector_from_string (test6_before_stringrep);
-    zvector_t *test6_parallel = zvector_from_string (test6_parallel_stringrep);
-    zvector_t *test6_after = zvector_from_string (test6_after_stringrep);
+    zvector_t *test6_before1 = zvector_from_string (test6_before_stringrep1);
+    zvector_t *test6_before2 = zvector_from_string (test6_before_stringrep2);
+    zvector_t *test6_before3 = zvector_from_string (test6_before_stringrep3);
+    zvector_t *test6_parallel1 = zvector_from_string (test6_parallel_stringrep1);
+    zvector_t *test6_parallel2 = zvector_from_string (test6_parallel_stringrep2);
+    zvector_t *test6_parallel3 = zvector_from_string (test6_parallel_stringrep3);
+    zvector_t *test6_after1 = zvector_from_string (test6_after_stringrep1);
+    zvector_t *test6_after2 = zvector_from_string (test6_after_stringrep2);
+    zvector_t *test6_after3 = zvector_from_string (test6_after_stringrep3);
 
-    assert ( zvector_compare_to (test6_self, test6_before) == -1);
-    assert ( zvector_compare_to (test6_self, test6_parallel) == 0);
-    assert ( zvector_compare_to (test6_self, test6_after) == 1);
+    assert ( zvector_compare_to (test6_self, test6_before1) == -1);
+    assert ( zvector_compare_to (test6_self, test6_before2) == -1);
+    assert ( zvector_compare_to (test6_self, test6_before3) == -1);
+    assert ( zvector_compare_to (test6_self, test6_parallel1) == 0);
+    assert ( zvector_compare_to (test6_self, test6_parallel2) == 0);
+    assert ( zvector_compare_to (test6_self, test6_parallel3) == 0);
+    assert ( zvector_compare_to (test6_self, test6_after1) == 1);
+    assert ( zvector_compare_to (test6_self, test6_after2) == 1);
+    assert ( zvector_compare_to (test6_self, test6_after3) == 1);
     assert ( zvector_compare_to (test6_self, test6_self) == 2);
 
     zstr_free (&test6_self_stringrep);
-    zstr_free (&test6_before_stringrep);
-    zstr_free (&test6_parallel_stringrep);
-    zstr_free (&test6_after_stringrep);
+    zstr_free (&test6_before_stringrep1);
+    zstr_free (&test6_before_stringrep2);
+    zstr_free (&test6_before_stringrep3);
+    zstr_free (&test6_parallel_stringrep1);
+    zstr_free (&test6_parallel_stringrep2);
+    zstr_free (&test6_parallel_stringrep3);
+    zstr_free (&test6_after_stringrep1);
+    zstr_free (&test6_after_stringrep2);
+    zstr_free (&test6_after_stringrep3);
     zvector_destroy (&test6_self);
-    zvector_destroy (&test6_before);
-    zvector_destroy (&test6_parallel);
-    zvector_destroy (&test6_after);
+    zvector_destroy (&test6_before1);
+    zvector_destroy (&test6_before2);
+    zvector_destroy (&test6_before3);
+    zvector_destroy (&test6_parallel1);
+    zvector_destroy (&test6_parallel2);
+    zvector_destroy (&test6_parallel3);
+    zvector_destroy (&test6_after1);
+    zvector_destroy (&test6_after2);
+    zvector_destroy (&test6_after3);
 
 
 
