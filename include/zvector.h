@@ -34,6 +34,20 @@ ZLOG_EXPORT zmsg_t *
 ZLOG_EXPORT void
     zvector_recv (zvector_t *self, zmsg_t *msg);
 
+//  Converts the zvector into string representation
+ZLOG_EXPORT char *
+    zvector_to_string (zvector_t *self);
+
+//  Creates a zvector from a given string representation
+ZLOG_EXPORT zvector_t *
+    zvector_from_string (char *clock_string);
+
+//  Compares zvector self to zvector other.
+//  Returns -1 at happened before self, 0 at parallel, 1 at happened after
+//  and 2 when clocks are the same
+ZLOG_EXPORT int
+    zvector_compare_to (zvector_t *zv_self, zvector_t *zv_other);
+
 //  Log informational message - low priority. Prepends the current VC.
 ZLOG_EXPORT void
     zvector_info (zvector_t *self, char *format, ...);
