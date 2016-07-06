@@ -294,13 +294,23 @@ zelection_leader (zelection_t *self)
 
 
 //  --------------------------------------------------------------------------
-//  Returns true if an election is finished and won.
+//  Returns true if an election is won, otherwise false.
+
+bool
+zelection_won (zelection_t *self)
+{
+    assert (self);
+    return self->leader? self->state: false;
+}
+
+//  --------------------------------------------------------------------------
+//  Returns true if an election is finished, otherwise false.
 
 bool
 zelection_finished (zelection_t *self)
 {
     assert (self);
-    return self->leader? self->state: false;
+    return !self->caw && self->leader;
 }
 
 
@@ -454,6 +464,16 @@ zelection_test (bool verbose)
     zstr_free (&type);
     rc = zelection_recv (node1_election, event);
     assert (rc == 0);
+
+    assert (zelection_finished (node1_election));
+    assert (zelection_finished (node2_election));
+
+    int leader_count = 0;
+    int looser_count = 0;
+    zelection_won (node1_election)? leader_count++: looser_count++;
+    zelection_won (node2_election)? leader_count++: looser_count++;
+    assert (leader_count == 1);
+    assert (looser_count == 1);
 
     //  Cleanup
     zelection_destroy (&node1_election);

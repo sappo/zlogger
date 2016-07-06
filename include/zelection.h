@@ -43,6 +43,10 @@ ZLOG_EXPORT const char *
 ZLOG_EXPORT bool
     zelection_finished (zelection_t *self);
 
+//  Returns true if an election is won, otherwise false.
+ZLOG_EXPORT bool
+    zelection_won (zelection_t *self);
+
 //  Set a vector clock handle. Election message will be prepended with the
 //  vector if not NULL.
 ZLOG_EXPORT void
