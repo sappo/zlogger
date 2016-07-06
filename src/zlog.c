@@ -23,7 +23,7 @@
 
 struct _zlog_t {
     zsock_t *pipe;              //  Actor command pipe
-    zpoller_t *poller;          //  Socket poller
+    zloop_t *loop;              //  Actor event loop
     bool terminated;            //  Did caller ask us to quit?
     bool verbose;               //  Verbose logging enabled?
     //  Actor properties
@@ -32,6 +32,15 @@ struct _zlog_t {
     zyre_t *node;               //  Zyre handle
 };
 
+
+//  --------------------------------------------------------------------------
+//  Internal helper functions
+
+static int
+s_zlog_recv_api (zloop_t *loop, zsock_t *reader, void *arg);
+
+static int
+s_zlog_recv_zyre (zloop_t *loop, zsock_t *reader, void *arg);
 
 //  --------------------------------------------------------------------------
 //  Create a new zlog instance
@@ -47,13 +56,14 @@ zlog_new (zsock_t *pipe, void *args)
 
     self->pipe = pipe;
     self->terminated = false;
-    self->poller = zpoller_new (self->pipe, NULL);
+    self->loop = zloop_new ();
+    zloop_reader (self->loop, self->pipe, s_zlog_recv_api, self);
 
     //  Initialize properties
     char *name = params[1];
     assert (name);
     self->node = zyre_new (name);
-    zpoller_add (self->poller, zyre_socket (self->node));
+    zloop_reader (self->loop, zyre_socket (self->node), s_zlog_recv_zyre, self);
     self->clock = zvector_new (zyre_uuid (self->node));
     self->election = zelection_new (self->node);
     zelection_set_clock (self->election, self->clock);
@@ -90,7 +100,7 @@ zlog_destroy (zlog_t **self_p)
         zyre_destroy (&self->node);
 
         //  Free object itself
-        zpoller_destroy (&self->poller);
+        zloop_destroy (&self->loop);
         free (self);
         *self_p = NULL;
     }
@@ -137,13 +147,16 @@ zlog_stop (zlog_t *self)
 
 //  Here we handle incoming message from the node
 
-static void
-zlog_recv_api (zlog_t *self)
+static int
+s_zlog_recv_api (zloop_t *loop, zsock_t *reader, void *arg)
 {
+    assert (arg);
+    zlog_t *self = (zlog_t *) arg;
+
     //  Get the whole message of the pipe in one go
     zmsg_t *request = zmsg_recv (self->pipe);
     if (!request)
-       return;        //  Interrupted
+       return 0;        //  Interrupted, gracefully deny error. Keep going!
 
     char *command = zmsg_popstr (request);
     if (streq (command, "START"))
@@ -166,34 +179,47 @@ zlog_recv_api (zlog_t *self)
     }
     zstr_free (&command);
     zmsg_destroy (&request);
+
+    //  Negative return value will abort loop!
+    return self->terminated? -1: 0;
 }
 
 
 //  Here we handle incoming message from zyre
 
-static void
-zlog_recv_zyre (zlog_t *self)
+static int
+s_zlog_recv_zyre (zloop_t *loop, zsock_t *reader, void *arg)
 {
+    assert (arg);
+    zlog_t *self = (zlog_t *) arg;
+
     //  Get the whole message of the pipe in one go
     zyre_event_t *event = zyre_event_new (self->node);
     if (!event)
-       return;        //  Interrupted
+       return -1;        //  Interrupted, stop zyre processing!
 
     const char *type = zyre_event_type (event);
     if (streq (type, "WHISPER")) {
         zmsg_t *request = zyre_event_msg (event);
         zvector_recv (self->clock, request);
         char *command = zmsg_popstr (request);
+        //  Handle election messages
         if (streq (command, "ZLE")) {
             int rc = zelection_recv (self->election, event);
-            if (rc == 0)        //  Election is finished
+            if (rc == 0) {
                 if (self->verbose)
                     zelection_print (self->election);
+
+                //  TODO: leader action
+            }
+            //  rc == -1, will be ignored! We just let the election starve.
         }
         zstr_free (&command);
     }
     else
         zyre_event_destroy (&event);
+
+    return 0;
 }
 
 
@@ -210,15 +236,8 @@ zlog_actor (zsock_t *pipe, void *args)
     //  Signal actor successfully initiated
     zsock_signal (self->pipe, 0);
 
-    while (!self->terminated) {
-        zsock_t *which = (zsock_t *) zpoller_wait (self->poller, 0);
-        if (which == self->pipe)
-            zlog_recv_api (self);
-        else
-        if (which == zyre_socket (self->node))
-            zlog_recv_zyre (self);
-       //  Add other sockets when you need them.
-    }
+    zloop_start (self->loop);
+
     zlog_destroy (&self);
 }
 
