@@ -24,6 +24,14 @@ This is the class interface:
     ZLOG_EXPORT int
         zelection_recv (zelection_t *self, zyre_event_t *event);
     
+    //  Returns the leader if an election is finished, otherwise NULL.
+    ZLOG_EXPORT const char *
+        zelection_leader (zelection_t *self);
+    
+    //  Returns true if an election is finished and won.
+    ZLOG_EXPORT bool
+        zelection_finished (zelection_t *self);
+    
     //  Set a vector clock handle. Election message will be prepended with the
     //  vector if not NULL.
     ZLOG_EXPORT void
@@ -80,6 +88,10 @@ This is the class self test code:
     zelection_t *node2_election = zelection_new (node2);
     assert (node1_election);
     assert (node2_election);
+    zvector_t *clock1 = zvector_new (zyre_uuid (node1));
+    zvector_t *clock2 = zvector_new (zyre_uuid (node2));
+    zelection_set_clock (node1_election, clock1);
+    zelection_set_clock (node2_election, clock2);
     zelection_set_verbose (node1_election, verbose);
     zelection_set_verbose (node2_election, verbose);
     
@@ -93,6 +105,7 @@ This is the class self test code:
         else
             break;
     } while (1);
+    zvector_recv (node2_election->clock, zyre_event_msg (event));
     char *type = zmsg_popstr (zyre_event_msg (event));
     assert (streq (type, "ZLE"));
     zstr_free (&type);
@@ -106,6 +119,7 @@ This is the class self test code:
         else
             break;
     } while (1);
+    zvector_recv (node1_election->clock, zyre_event_msg (event));
     type = zmsg_popstr (zyre_event_msg (event));
     assert (streq (type, "ZLE"));
     zstr_free (&type);
@@ -119,6 +133,7 @@ This is the class self test code:
         else
             break;
     } while (1);
+    zvector_recv (node2_election->clock, zyre_event_msg (event));
     type = zmsg_popstr (zyre_event_msg (event));
     assert (streq (type, "ZLE"));
     zstr_free (&type);
@@ -132,6 +147,7 @@ This is the class self test code:
         else
             break;
     } while (1);
+    zvector_recv (node1_election->clock, zyre_event_msg (event));
     type = zmsg_popstr (zyre_event_msg (event));
     assert (streq (type, "ZLE"));
     zstr_free (&type);
@@ -141,6 +157,8 @@ This is the class self test code:
     //  Cleanup
     zelection_destroy (&node1_election);
     zelection_destroy (&node2_election);
+    zvector_destroy (&clock1);
+    zvector_destroy (&clock2);
     
     zyre_stop (node1);
     zyre_stop (node2);
