@@ -35,6 +35,14 @@ ZLOG_EXPORT void
 ZLOG_EXPORT int
     zelection_recv (zelection_t *self, zyre_event_t *event);
 
+//  Returns the leader if an election is finished, otherwise NULL.
+ZLOG_EXPORT const char *
+    zelection_leader (zelection_t *self);
+
+//  Returns true if an election is finished and won.
+ZLOG_EXPORT bool
+    zelection_finished (zelection_t *self);
+
 //  Set a vector clock handle. Election message will be prepended with the
 //  vector if not NULL.
 ZLOG_EXPORT void

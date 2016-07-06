@@ -198,8 +198,10 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
         if (!self->caw || strcmp (r, self->caw) < 0) {
             zstr_free (&self->caw);     //  Free caw when re-initiated
             zstr_free (&self->father);  //  Free father when re-initiated
+            zstr_free (&self->leader);  //  Free leader when re-initiated
             self->caw = strdup (r);
             self->erec = 0;
+            self->lrec = 0;
             self->father = strdup (zyre_event_peer_uuid (event));
 
             zmsg_t *election_msg = zmsg_new ();
@@ -247,7 +249,7 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
         //  If r > caw, the message is ignored!
     }
     else
-    if (streq(type, "LEADER")) {
+    if (streq (type, "LEADER")) {
         if (self->lrec == 0) {
             zmsg_t *leader_msg = zmsg_new ();
             zmsg_addstr (leader_msg, "ZLE");
@@ -270,12 +272,35 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
 
     if (self->lrec == s_neighbors_count (self)) {
         self->state = streq (self->leader, zyre_uuid (self->node));
+        zstr_free (&self->caw);     //  Free caw as election is finished
         if (self->verbose)
             zvector_info (self->clock, "Election finished %s, %s!\n", zyre_uuid (self->node), self->state? "true": "false");
         return 0;
     }
     else
         return 1;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Returns the leader if an election is finished, otherwise NULL.
+
+const char *
+zelection_leader (zelection_t *self)
+{
+    assert (self);
+    return self->leader;;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Returns true if an election is finished and won.
+
+bool
+zelection_finished (zelection_t *self)
+{
+    assert (self);
+    return self->leader? self->state: false;
 }
 
 
