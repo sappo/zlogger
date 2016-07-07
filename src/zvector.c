@@ -309,97 +309,29 @@ zvector_from_string (char *clock_string)
 
 
 //  --------------------------------------------------------------------------
-//  Compares zvector self to zvector other.
-//  Returns -1 at happened before self, 0 at parallel/equal, 1 at happened after
+//  Compares two zvector. Returns -1 at happened before self, 0 at parallel,
+//  1 at happened after.
 
 int
-zvector_compare_to (zvector_t *zv_self, zvector_t *zv_other)
+zvector_compare_to (zvector_t *self, zvector_t *other)
 {
-  assert (zv_self);
-  assert (zv_other);
+    assert (self);
+    assert (other);
 
-  bool parallelClocks = true;
-  bool equalClocks = false;
-  bool selfHappendBeforeOther = false;
-  unsigned long *self_value = NULL;
-  unsigned long *other_value = NULL;
-  const char *self_pid = NULL;
+    //  self => other
+    unsigned long *self_val = (unsigned long *) zhashx_lookup (self->clock, self->own_pid);
+    unsigned long *other_val = (unsigned long *) zhashx_lookup (other->clock, self->own_pid);
+    if (self_val && other_val && *self_val <= *other_val)
+        return -1;
 
-  self_value = (unsigned long *) zhashx_first (zv_self->clock);
-  self_pid = (const char *) zhashx_cursor (zv_self->clock);
+    //  other => self
+    self_val = (unsigned long *) zhashx_lookup (self->clock, other->own_pid);
+    other_val = (unsigned long *) zhashx_lookup (other->clock, other->own_pid);
+    if (self_val && other_val && *other_val <= *self_val)
+        return 1;
 
-  // test if vectorClocks are equal
-  if (zhashx_size (zv_self->clock) == zhashx_size (zv_other->clock)) {
-    equalClocks = true;
-
-    while (self_value) {
-      other_value = (unsigned long *) zhashx_lookup (zv_other->clock, self_pid);
-
-      if (other_value) {
-        if (*other_value != *self_value){
-          equalClocks = false;
-          break;
-        }
-      } else {
-        equalClocks = false;
-        break;
-      }
-
-      self_value = (unsigned long *) zhashx_next (zv_self->clock);
-      self_pid = (const char *) zhashx_cursor (zv_self->clock);
-
-      if (equalClocks) {
-        return 0;
-      }
-    }
-
-  }
-
-  // test if vectorClocks are parallel
-  self_value = (unsigned long *) zhashx_first (zv_self->clock);
-  self_pid = (const char *) zhashx_cursor (zv_self->clock);
-
-  while (self_value) {
-    other_value = (unsigned long *) zhashx_lookup (zv_other->clock, self_pid);
-
-    if (other_value) {
-      parallelClocks = false;
-      break;
-    }
-
-    self_value = (unsigned long *) zhashx_next (zv_self->clock);
-    self_pid = (const char *) zhashx_cursor (zv_self->clock);
-  }
-
-  if (parallelClocks) {
-      return 0;
-  }
-
-  // test if zv_self happened before zv_other
-  self_value = (unsigned long *) zhashx_first (zv_self->clock);
-  self_pid = (const char *) zhashx_cursor (zv_self->clock);
-
-  selfHappendBeforeOther = true;
-  while (self_value) {
-    other_value = (unsigned long *) zhashx_lookup (zv_other->clock, self_pid);
-
-    if (other_value) {
-      if (*self_value > *other_value) {
-        selfHappendBeforeOther = false;
-        break;
-      }
-    }
-
-    self_value = (unsigned long *) zhashx_next (zv_self->clock);
-    self_pid = (const char *) zhashx_cursor (zv_self->clock);
-  }
-
-  if (selfHappendBeforeOther){
-    return 1;
-  } else {
-    return -1;
-  }
-
+    //  self || other
+    return 0;
 }
 
 
@@ -568,16 +500,15 @@ zvector_test (bool verbose)
 
 
     // Simple compare test
-    char *test6_self_stringrep = zsys_sprintf ("%s", "VC:3;own:1001;1000,10;2000,10;3000,10;");
-    char *test6_before_stringrep1 = zsys_sprintf ("%s", "VC:2;own:1001;1100,10;3000,9;");
-    char *test6_before_stringrep2 = zsys_sprintf ("%s", "VC:3;own:1001;1100,10;2100,10;3000,9;");
-    char *test6_before_stringrep3 = zsys_sprintf ("%s", "VC:4;own:1001;1100,10;2100,10;3000,9;4000,9");
-    char *test6_parallel_stringrep1 = zsys_sprintf ("%s", "VC:2;own:1001;1500,10;2500,10;");
-    char *test6_parallel_stringrep2 = zsys_sprintf ("%s", "VC:3;own:1001;1500,10;2500,10;3500,10;");
-    char *test6_parallel_stringrep3 = zsys_sprintf ("%s", "VC:4;own:1001;500,20;1500,10;2500,10;3500,10;");
-    char *test6_after_stringrep1 = zsys_sprintf ("%s", "VC:2;own:1001;1000,11;2200,10;");
-    char *test6_after_stringrep2 = zsys_sprintf ("%s", "VC:3;own:1001;1200,10;2200,10;3000,11;");
-    char *test6_after_stringrep3 = zsys_sprintf ("%s", "VC:4;own:1001;1200,10;2200,10;3000,11;2000,11;");
+    char *test6_self_stringrep = zsys_sprintf ("%s", "VC:3;own:p2;p1,2;p2,2;p3,2;");
+    char *test6_before_stringrep1 = zsys_sprintf ("%s", "VC:2;own:p3;p1,1;p3,2;");
+    char *test6_before_stringrep2 = zsys_sprintf ("%s", "VC:2;own:p2;p1,2;p2,1;");
+    char *test6_before_stringrep3 = zsys_sprintf ("%s", "VC:1;own:p1;p1,1;");
+    char *test6_parallel_stringrep1 = zsys_sprintf ("%s", "VC:1;own:p1;p1,3;");
+    char *test6_parallel_stringrep2 = zsys_sprintf ("%s", "VC:2;own:p3;p1,1;p3,3;");
+    char *test6_parallel_stringrep3 = zsys_sprintf ("%s", "VC:2;own:p1;p1,4;p3,3;");
+    char *test6_after_stringrep1 = zsys_sprintf ("%s", "VC:3;own:p2;p1,2;p2,3;p3,2;");
+    char *test6_after_stringrep2 = zsys_sprintf ("%s", "VC:3;own:p3;p1,2;p2,3;p3,4;");
     zvector_t *test6_self = zvector_from_string (test6_self_stringrep);
     zvector_t *test6_before1 = zvector_from_string (test6_before_stringrep1);
     zvector_t *test6_before2 = zvector_from_string (test6_before_stringrep2);
@@ -587,19 +518,15 @@ zvector_test (bool verbose)
     zvector_t *test6_parallel3 = zvector_from_string (test6_parallel_stringrep3);
     zvector_t *test6_after1 = zvector_from_string (test6_after_stringrep1);
     zvector_t *test6_after2 = zvector_from_string (test6_after_stringrep2);
-    zvector_t *test6_after3 = zvector_from_string (test6_after_stringrep3);
 
-    assert ( zvector_compare_to (test6_self, test6_before1) == -1);
-    assert ( zvector_compare_to (test6_self, test6_before2) == -1);
-    assert ( zvector_compare_to (test6_self, test6_before3) == -1);
-    assert ( zvector_compare_to (test6_self, test6_self) == 0);
-    assert ( zvector_compare_to (test6_self, test6_parallel1) == 0);
-    assert ( zvector_compare_to (test6_self, test6_parallel2) == 0);
-    assert ( zvector_compare_to (test6_self, test6_parallel3) == 0);
-    assert ( zvector_compare_to (test6_self, test6_after1) == 1);
-    assert ( zvector_compare_to (test6_self, test6_after2) == 1);
-    assert ( zvector_compare_to (test6_self, test6_after3) == 1);
-
+    assert (zvector_compare_to (test6_self, test6_before1) == 1);
+    assert (zvector_compare_to (test6_self, test6_before2) == 1);
+    assert (zvector_compare_to (test6_self, test6_before3) == 1);
+    assert (zvector_compare_to (test6_self, test6_parallel1) == 0);
+    assert (zvector_compare_to (test6_self, test6_parallel2) == 0);
+    assert (zvector_compare_to (test6_self, test6_parallel3) == 0);
+    assert (zvector_compare_to (test6_self, test6_after1) == -1);
+    assert (zvector_compare_to (test6_self, test6_after2) == -1);
 
     zstr_free (&test6_self_stringrep);
     zstr_free (&test6_before_stringrep1);
@@ -610,7 +537,7 @@ zvector_test (bool verbose)
     zstr_free (&test6_parallel_stringrep3);
     zstr_free (&test6_after_stringrep1);
     zstr_free (&test6_after_stringrep2);
-    zstr_free (&test6_after_stringrep3);
+
     zvector_destroy (&test6_self);
     zvector_destroy (&test6_before1);
     zvector_destroy (&test6_before2);
@@ -620,9 +547,6 @@ zvector_test (bool verbose)
     zvector_destroy (&test6_parallel3);
     zvector_destroy (&test6_after1);
     zvector_destroy (&test6_after2);
-    zvector_destroy (&test6_after3);
-
-
     //  @end
     printf ("OK\n");
 }

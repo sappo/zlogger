@@ -37,7 +37,7 @@ struct _zlog_t {
 //  Internal helper functions
 
 static zvector_t *
-s_get_zvector_from_logMsg (char *logMsg);
+s_get_clock_from_log_msg (char *logMsg);
 
 //static int
 //s_get_timestamp_from_logMsg (char *logMsg);
@@ -154,7 +154,7 @@ zlog_stop (zlog_t *self)
 //  Extracts the vectorclock from a given logMsg and returns as new vector
 
 static zvector_t *
-s_get_zvector_from_logMsg (char *logMsg)
+s_get_clock_from_log_msg (char *logMsg)
 {
   assert (logMsg);
 
@@ -281,16 +281,16 @@ zlog_actor (zsock_t *pipe, void *args)
 //  Returns -1 if a < b, 0 if a = b, 1 if a > b and 2 if a and b parallel
 
 int
-zlog_compare_logMsg (const char *logMsg_a, const char *logMsg_b)
+zlog_compare_log_msg (const char *log_msg_a, const char *log_msg_b)
 {
-  zvector_t *logMsg_a_vector = s_get_zvector_from_logMsg ((char *)logMsg_a);
-  zvector_t *logMsg_b_vector = s_get_zvector_from_logMsg ((char *)logMsg_b);
+  zvector_t *clock_a = s_get_clock_from_log_msg ((char *)log_msg_a);
+  zvector_t *clock_b = s_get_clock_from_log_msg ((char *)log_msg_b);
 
-  int ret = zvector_compare_to (logMsg_a_vector, logMsg_b_vector);
-  zvector_destroy (&logMsg_a_vector);
-  zvector_destroy (&logMsg_b_vector);
+  int ret = zvector_compare_to (clock_a, clock_b);
+  zvector_destroy (&clock_a);
+  zvector_destroy (&clock_b);
 
-  return ret;
+  return ret == 0? 1: ret;
 }
 
 //  --------------------------------------------------------------------------
@@ -311,7 +311,7 @@ zlog_order_log (const char *path_src, const char *path_dst)
   zlistx_t *ordered_list = zlistx_new ();
   zlistx_set_destructor (ordered_list, (zlistx_destructor_fn *) zstr_free);
   zlistx_set_duplicator (ordered_list, (zlistx_duplicator_fn *) strdup);
-  zlistx_set_comparator (ordered_list, (zlistx_comparator_fn *) zlog_compare_logMsg);
+  zlistx_set_comparator (ordered_list, (zlistx_comparator_fn *) zlog_compare_log_msg);
 
   // Insert data in a ordered_list and order it with given compare function
   const char *line = zfile_readln (file_src);
