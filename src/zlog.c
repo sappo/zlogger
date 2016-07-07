@@ -36,6 +36,12 @@ struct _zlog_t {
 //  --------------------------------------------------------------------------
 //  Internal helper functions
 
+static zvector_t *
+s_get_zvector_from_logMsg (char *logMsg);
+
+//static int
+//s_get_timestamp_from_logMsg (char *logMsg);
+
 static int
 s_zlog_recv_api (zloop_t *loop, zsock_t *reader, void *arg);
 
@@ -145,6 +151,34 @@ zlog_stop (zlog_t *self)
 }
 
 
+//  Extracts the vectorclock from a given logMsg and returns as new vector
+
+static zvector_t *
+s_get_zvector_from_logMsg (char *logMsg)
+{
+  assert (logMsg);
+
+  char *log = strdup (logMsg);
+  char *clock_ptr = NULL;
+  clock_ptr = strtok(log, "/");
+  clock_ptr = strtok(NULL, "/");
+
+  zvector_t *ret = zvector_from_string(clock_ptr);
+  zstr_free (&log);
+
+  return ret;
+}
+
+//  Extracts the timestamo from a given logMsg and returns as int
+/*
+static int
+s_get_timestamp_from_logMsg (char *logMsg)
+{
+  assert (logMsg);
+  return 1;
+}
+*/
+
 //  Here we handle incoming message from the node
 
 static int
@@ -241,6 +275,67 @@ zlog_actor (zsock_t *pipe, void *args)
     zlog_destroy (&self);
 }
 
+
+//  --------------------------------------------------------------------------
+//  Compares the zvector_t's of given logMsg a to logMsg b.
+//  Returns -1 if a < b, 0 if a = b, 1 if a > b and 2 if a and b parallel
+
+int
+zlog_compare_logMsg (const char *logMsg_a, const char *logMsg_b)
+{
+  zvector_t *logMsg_a_vector = s_get_zvector_from_logMsg ((char *)logMsg_a);
+  zvector_t *logMsg_b_vector = s_get_zvector_from_logMsg ((char *)logMsg_b);
+
+  int ret = zvector_compare_to (logMsg_a_vector, logMsg_b_vector);
+  zvector_destroy (&logMsg_a_vector);
+  zvector_destroy (&logMsg_b_vector);
+
+  return ret;
+}
+
+//  --------------------------------------------------------------------------
+//  Orders log with the given filepath
+
+void
+zlog_order_log (const char *path_src, const char *path_dst)
+{
+  assert (path_src);
+  assert (path_dst);
+
+  zfile_t *file_src = zfile_new (NULL, path_src);
+  FILE *file_dst = fopen(path_dst, "w");
+  assert (file_src);
+  assert (file_dst);
+
+  zfile_input (file_src);
+  zlistx_t *ordered_list = zlistx_new ();
+  zlistx_set_destructor (ordered_list, (zlistx_destructor_fn *) zstr_free);
+  zlistx_set_duplicator (ordered_list, (zlistx_duplicator_fn *) strdup);
+  zlistx_set_comparator (ordered_list, (zlistx_comparator_fn *) zlog_compare_logMsg);
+
+  // Insert data in a ordered_list and order it with given compare function
+  const char *line = zfile_readln (file_src);
+  while (line != NULL) {
+    zlistx_insert (ordered_list, (void *)line, true);
+    line = zfile_readln (file_src);
+  }
+
+  // write ordered data from ordered_list in a new logfile
+  const char newLineSymbol = '\n';
+  line = (const char *) zlistx_first (ordered_list);
+  while (line != NULL) {
+    fwrite (line, 1, strlen (line), file_dst);
+    fwrite (&newLineSymbol, 1, 1, file_dst);
+    //printf("%s %lu\n", line, strlen (line));
+    line = (const char *) zlistx_next (ordered_list);
+  }
+
+  zlistx_destroy (&ordered_list);
+  zfile_destroy (&file_src);
+  fclose (file_dst);
+}
+
+
 //  --------------------------------------------------------------------------
 //  Self test of this actor.
 
@@ -291,6 +386,9 @@ zlog_test (bool verbose)
     zactor_destroy (&zlog2);
     zactor_destroy (&zlog3);
     zactor_destroy (&zlog4);
+
+
+    //zlog_order_log ("/var/log/vc.log", "ordered_vc1.log");
     //  @end
 
     printf ("OK\n");
