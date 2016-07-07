@@ -169,8 +169,7 @@ zvector_recv (zvector_t *self, zmsg_t *msg)
     zhashx_t *sender_clock = zhashx_unpack_own (packed_clock, s_deserialize_clock_value);
     zhashx_set_destructor (sender_clock, s_destroy_clock_value);
 
-    unsigned long *own_clock_value = (unsigned long *) zhashx_lookup (self->clock, self->own_pid);
-    (*own_clock_value)++;
+    zvector_event (self);
 
     zlistx_t *sender_clock_procs = zhashx_keys (sender_clock);
     const char *pid = (const char *) zlistx_first (sender_clock_procs);
@@ -350,6 +349,7 @@ zvector_info (zvector_t *self, char *format, ...)
     zsys_info ("/%s/ %s", clockstr, logmsg);
     zstr_free (&logmsg);
     zstr_free (&clockstr);
+    zvector_event (self);
 }
 
 
