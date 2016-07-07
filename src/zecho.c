@@ -95,7 +95,7 @@ zecho_init (zecho_t *self)
             if (!streq (neighbor, self->father)) {
                 //  Send token to neighbor
                 zmsg_t *inform_msg = zmsg_new ();
-                zmsg_addstr (inform_msg, "ZE");
+                zmsg_addstr (inform_msg, "ZECHO");
                 zmsg_addstr (inform_msg, self->wave_id);
                 //  Get inform message from handler
                 if (self->inform_fn) {
@@ -165,7 +165,7 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
             while (neighbor) {
                 if (!streq (neighbor, self->father)) {
                     zmsg_t *inform_msg = zmsg_new ();
-                    zmsg_addstr (inform_msg, "ZE");
+                    zmsg_addstr (inform_msg, "ZECHO");
                     zmsg_addstr (inform_msg, self->wave_id);
                     //  Get inform message from handler
                     if (self->inform_fn) {
@@ -202,7 +202,7 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
         }
         else {
             zmsg_t *collect_msg = zmsg_new ();
-            zmsg_addstr (collect_msg, "ZE");
+            zmsg_addstr (collect_msg, "ZECHO");
             zmsg_addstr (collect_msg, self->wave_id);
             //  Get collect message from handler
             if (self->collect_fn) {
@@ -328,7 +328,6 @@ zecho_test (bool verbose)
     }
 
     zecho_init (echo1);
-    zclock_sleep (500);
 
     zyre_event_t *event = NULL;
 
@@ -340,7 +339,7 @@ zecho_test (bool verbose)
             break;
     } while (1);
     char *type = zmsg_popstr (zyre_event_msg (event));
-    assert (streq (type, "ZE"));
+    assert (streq (type, "ZECHO"));
     zstr_free (&type);
     zecho_recv (echo2, event);
 
@@ -352,7 +351,7 @@ zecho_test (bool verbose)
             break;
     } while (1);
     type = zmsg_popstr (zyre_event_msg (event));
-    assert (streq (type, "ZE"));
+    assert (streq (type, "ZECHO"));
     zstr_free (&type);
     zecho_recv (echo3, event);
 
@@ -364,7 +363,7 @@ zecho_test (bool verbose)
             break;
     } while (1);
     type = zmsg_popstr (zyre_event_msg (event));
-    assert (streq (type, "ZE"));
+    assert (streq (type, "ZECHO"));
     zstr_free (&type);
     zecho_recv (echo2, event);
 
@@ -376,7 +375,7 @@ zecho_test (bool verbose)
             break;
     } while (1);
     type = zmsg_popstr (zyre_event_msg (event));
-    assert (streq (type, "ZE"));
+    assert (streq (type, "ZECHO"));
     zstr_free (&type);
     zecho_recv (echo1, event);
 
