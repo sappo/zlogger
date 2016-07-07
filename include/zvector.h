@@ -22,6 +22,10 @@ extern "C" {
 ZLOG_EXPORT zvector_t *
     zvector_new (const char* pid);
 
+//  Duplicates the given zvector, returns a dulpicate
+ZLOG_EXPORT  zvector_t *
+    zvector_duplicate (zvector_t *self);
+
 //  Destroy the zvector
 ZLOG_EXPORT void
     zvector_destroy (zvector_t **self_p);

@@ -85,6 +85,31 @@ zvector_new (const char *pid)
 
 
 //  --------------------------------------------------------------------------
+//  Duplicates the given zvector, returns a dulpicate
+
+zvector_t *
+zvector_duplicate (zvector_t *self)
+{
+    assert (self);
+
+    zvector_t *ret = zvector_new ("0");
+    zhashx_purge (ret->clock);
+    unsigned long *value = (unsigned long *) zhashx_first (self->clock);
+    const char *pid = (const char *) zhashx_cursor (self->clock);
+
+    while (value) {
+      zhashx_insert (ret->clock, pid, value);
+
+      value = (unsigned long *) zhashx_next (self->clock);
+      pid = (const char *) zhashx_cursor (self->clock);
+    }
+
+    return ret;
+}
+
+
+
+//  --------------------------------------------------------------------------
 //  Destroy the zvector
 
 void
@@ -295,7 +320,7 @@ zvector_compare_to (zvector_t *zv_self, zvector_t *zv_other)
   self_value = (unsigned long *) zhashx_first (zv_self->clock);
   self_pid = (const char *) zhashx_cursor (zv_self->clock);
 
-  // check, if vectorClocks are the same
+  // test if vectorClocks are the same
   if (zhashx_size (zv_self->clock) == zhashx_size (zv_other->clock)) {
     sameClocks = true;
 
