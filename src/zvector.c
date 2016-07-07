@@ -433,6 +433,7 @@ zvector_print (zvector_t *self)
     value = (unsigned long *) zhashx_next (self->clock);
     pid = (const char *) zhashx_cursor (self->clock);
   }
+
 }
 
 
@@ -558,7 +559,6 @@ zvector_test (bool verbose)
     zvector_destroy (&test5_self);
 
 
-
     // Simple compare test
     char *test6_self_stringrep = zsys_sprintf ("%s", "VC:3;1000,10;2000,10;3000,10;");
     char *test6_before_stringrep1 = zsys_sprintf ("%s", "VC:2;1100,10;3000,9;");
@@ -612,7 +612,6 @@ zvector_test (bool verbose)
     zvector_destroy (&test6_after1);
     zvector_destroy (&test6_after2);
     zvector_destroy (&test6_after3);
-
 
 
     //  @end
