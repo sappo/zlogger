@@ -55,12 +55,12 @@ zvector_new (const char *pid)
     //  Initialize class properties here
     self->own_pid = strdup (pid);
     self->clock = zhashx_new ();
-    self->space_time_states = zlist_new ();
-    self->space_time_events = zlist_new ();
     zhashx_set_destructor (self->clock, s_destroy_clock_value);
     unsigned long *clock_val = (unsigned long *) zmalloc (sizeof (unsigned long));
     *clock_val = 0;
     zhashx_insert (self->clock, pid, clock_val);
+    self->space_time_states = zlist_new ();
+    self->space_time_events = zlist_new ();
     zsys_set_logsystem (true);
     return self;
 }
