@@ -248,33 +248,68 @@ zvector_to_string (zvector_t *self)
 zvector_t *
 zvector_from_string (char *clock_string)
 {
-  assert (clock_string);
+    assert (clock_string);
+    assert (clock_string[0] == 'V');
+    assert (clock_string[1] == 'C');
 
+    //formation: 'VC:$numberOfClocks;own:$ownPid;$pid1,$val1;...;$pidx,$valx;\0'
+    unsigned long vc_count = 0;
+    zvector_t *ret = NULL;
 
-  char *pid_ptr = NULL;
-  char *val_ptr = NULL;
-  char *own_pid_ptr = NULL;
+    int state = 0;
+    char *needle, *pid = NULL, *beginWord = NULL;
+    size_t len = strlen (clock_string);
+    needle = (char *) clock_string;
+    char *needle_stop = needle + len;
+    beginWord = needle;
 
-  //formation: 'VC:$numberOfClocks;own:$ownPid;$pid1,$val1;...;$pidx,$valx;\0'
-  val_ptr = strtok(clock_string, ":");
-  val_ptr = strtok(NULL, ";");
-  int numberOfEntries = strtoul(val_ptr, NULL, 10);
+    while (needle < needle_stop + 1) {
+        if (*needle == ':') {
+            char *word = strndup (beginWord, needle - beginWord);
+            beginWord = needle + 1;
+            if (streq (word, "VC"))
+                state = 1;
+            else
+            if (streq (word, "own"))
+                state = 2;
+            else
+                assert (false);
 
-  own_pid_ptr = strtok(NULL, ":");
-  own_pid_ptr = strtok(NULL, ";");
-  zvector_t *ret = zvector_new (own_pid_ptr);
-  zhashx_purge (ret->clock);
+            zstr_free (&word);
+        }
+        else
+        if (*needle == ',') {
+            pid = strndup (beginWord, needle - beginWord);
+            beginWord = needle + 1;
+            state = 3;
+        }
+        else
+        if (*needle == ';') {
+            assert (state != 0);
+            char *word = strndup (beginWord, needle - beginWord);
+            if (state == 1)
+                vc_count = strtoul (word, NULL, 10);
+            else
+            if (state == 2) {
+                ret = zvector_new (word);
+                zhashx_purge (ret->clock);
+            }
+            else
+            if (state == 3) {
+                unsigned long *clock_value = (unsigned long *) zmalloc (sizeof (unsigned long));
+                *clock_value = strtoul(word, NULL, 10);
+                zhashx_insert (ret->clock, pid, clock_value);
+                zstr_free (&pid);
+            }
+            beginWord = needle + 1;
+            state = 0;
+            zstr_free (&word);
+        }
+        needle++;
+    }
+    assert (vc_count == zhashx_size (ret->clock));
 
-  for (int i=0; i<numberOfEntries; i++) {
-    pid_ptr = strtok(NULL, ",");
-    val_ptr = strtok(NULL, ";");
-    unsigned long *clock_value = (unsigned long *) zmalloc (sizeof (unsigned long));
-    *clock_value = strtoul(val_ptr, NULL, 10);
-
-    zhashx_insert (ret->clock, pid_ptr, clock_value);
-  }
-
-  return ret;
+    return ret;
 }
 
 
