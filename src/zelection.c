@@ -264,6 +264,8 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
         self->lrec++;
         zstr_free (&self->leader);
         self->leader = strdup (r);
+        if (self->verbose)
+            zvector_info (self->clock, "Received LEADER by %s\n", zyre_uuid (self->node));
     }
 
     zstr_free (&type);
@@ -275,7 +277,15 @@ zelection_recv (zelection_t *self, zyre_event_t *event)
         zstr_free (&self->caw);     //  Free caw as election is finished
         if (self->verbose)
             zvector_info (self->clock, "Election finished %s, %s!\n", zyre_uuid (self->node), self->state? "true": "false");
+
         return 0;
+    }
+    else
+    if (self->lrec > s_neighbors_count (self)) {
+        if (self->verbose)
+            zvector_info (self->clock, "Too much %s, %s!\n", zyre_uuid (self->node), self->state? "true": "false");
+
+        return 1;
     }
     else
         return 1;
