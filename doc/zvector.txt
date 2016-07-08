@@ -24,9 +24,30 @@ ZLOG_EXPORT zmsg_t *
 ZLOG_EXPORT void
     zvector_recv (zvector_t *self, zmsg_t *msg);
 
+//  Converts the zvector into string representation
+ZLOG_EXPORT char *
+    zvector_to_string (zvector_t *self);
+
+//  Creates a zvector from a given string representation
+ZLOG_EXPORT zvector_t *
+    zvector_from_string (char *clock_string);
+
+ZLOG_EXPORT void
+    zvector_dump_time_space (zvector_t *self);
+
+//  Compares zvector self to zvector other.
+//  Returns -1 at happened before self, 0 at parallel, 1 at happened after
+//  and 2 when clocks are the same
+ZLOG_EXPORT int
+    zvector_compare_to (zvector_t *zv_self, zvector_t *zv_other);
+
 //  Log informational message - low priority. Prepends the current VC.
 ZLOG_EXPORT void
     zvector_info (zvector_t *self, char *format, ...);
+
+//  Duplicates the given zvector, returns a freshly allocated dulpicate.
+ZLOG_EXPORT  zvector_t *
+    zvector_dup (zvector_t *self);
 
 //  Prints the zvector for debug purposes
 ZLOG_EXPORT void
@@ -49,22 +70,17 @@ EXAMPLE
 -------
 .From zvector_test method
 ----
-
-
-
-//  Simple create/destroy test of zvector_t
+//  TEST: create/destroy zvector_t
 zvector_t *test1_self = zvector_new ("1000");
 assert (test1_self);
 zvector_destroy (&test1_self);
 
-
-
-// Simple test for converting a zvector to stringrepresentation
-// and from stringrepresentation to a zvector
+//  TEST: for converting a zvector to stringrepresentation and from
+//        string represenstation to zvector.
 zvector_t *test2_self = zvector_new ("1000");
 assert (test2_self);
 
-// inserting some clocks & values
+//  Inserting some clocks & values
 zvector_event (test2_self);
 unsigned long *test2_inserted_value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
 *test2_inserted_value1 = 7;
@@ -74,7 +90,7 @@ unsigned long *test2_inserted_value2 = (unsigned long *) zmalloc (sizeof (unsign
 zhashx_insert (test2_self->clock, "1002", test2_inserted_value2);
 
 char *test2_string = zvector_to_string (test2_self);
-assert (streq (test2_string, "VC:3;1001,7;1000,1;1002,11;"));
+assert (streq (test2_string, "VC:3;own:1000;1001,7;1000,1;1002,11;"));
 
 zvector_t *test2_generated = zvector_from_string (test2_string);
 assert ( *(unsigned long *) zhashx_lookup (test2_generated->clock, "1000") == 1 );
@@ -85,9 +101,7 @@ zstr_free (&test2_string);
 zvector_destroy (&test2_self);
 zvector_destroy (&test2_generated);
 
-
-
-//  Simple event test
+//  TEST: events
 zvector_t *test3_self = zvector_new ("1000");
 assert (test3_self);
 
@@ -99,34 +113,25 @@ assert ( *(unsigned long *) zhashx_lookup (test3_self->clock, "1000") == 0 );
 zvector_event (test3_self);
 assert ( *(unsigned long *) zhashx_lookup (test3_self->clock, "1000") == 1 );
 assert ( *(unsigned long *) zhashx_lookup (test3_self->clock, "1001") == 5 );
-
 zvector_destroy (&test3_self);
 
-
-
-//  Simple recv test
+//  TEST: recv test
 zvector_t *test4_self_clock = zvector_new ("1000");
-char *test4_sender_clock1_stringRep = zsys_sprintf ("%s", "VC:2;1000,5;1001,10;");
-char *test4_sender_clock2_stringRep = zsys_sprintf ("%s", "VC:2;1000,20;1002,30;");
-zvector_t *test4_sender_clock1 = zvector_from_string (test4_sender_clock1_stringRep);
-zvector_t *test4_sender_clock2 = zvector_from_string (test4_sender_clock2_stringRep);
+char *test4_sender_clock1_stringRep = zsys_sprintf ("%s", "VC:2;own:1001;1000,5;1001,10;");
+char *test4_sender_clock2_stringRep = zsys_sprintf ("%s", "VC:2;own:1002;1000,20;1002,30;");
 assert (test4_self_clock);
-assert (test4_sender_clock1);
-assert (test4_sender_clock2);
 
-// receive sender clock 1 and add key-value pairs to own clock
+//  Receive sender clock 1 and add key-value pairs to own clock
 zmsg_t *test4_msg1 = zmsg_new ();
-zframe_t *test4_packed_clock1 = zhashx_pack_own (test4_sender_clock1->clock, s_serialize_clock_value);
-zmsg_prepend (test4_msg1, &test4_packed_clock1);
+zmsg_pushstr (test4_msg1, test4_sender_clock1_stringRep);
 zvector_recv (test4_self_clock, test4_msg1);
 zmsg_destroy (&test4_msg1);
 assert ( *(unsigned long *) zhashx_lookup (test4_self_clock->clock, "1000") == 5 );
 assert ( *(unsigned long *) zhashx_lookup (test4_self_clock->clock, "1001") == 10 );
 
-// receive sender clock 2 and add key-value pairs to own clock
+//  Receive sender clock 2 and add key-value pairs to own clock
 test4_msg1 = zmsg_new ();
-zframe_t *test4_packed_clock2 = zhashx_pack_own (test4_sender_clock2->clock, s_serialize_clock_value);
-zmsg_prepend (test4_msg1, &test4_packed_clock2);
+zmsg_pushstr (test4_msg1, test4_sender_clock2_stringRep);
 zvector_recv (test4_self_clock, test4_msg1);
 zmsg_destroy (&test4_msg1);
 assert ( *(unsigned long *) zhashx_lookup (test4_self_clock->clock, "1000") == 20 );
@@ -136,12 +141,8 @@ assert ( *(unsigned long *) zhashx_lookup (test4_self_clock->clock, "1002") == 3
 zstr_free (&test4_sender_clock1_stringRep);
 zstr_free (&test4_sender_clock2_stringRep);
 zvector_destroy (&test4_self_clock);
-zvector_destroy (&test4_sender_clock1);
-zvector_destroy (&test4_sender_clock2);
 
-
-
-// Simple send_prepare test
+// TEST: send prepare
 zvector_t *test5_self = zvector_new ("1000");
 assert (test5_self);
 zvector_event (test5_self);
@@ -149,31 +150,28 @@ zmsg_t *test5_zmsg = zmsg_new ();
 zmsg_pushstr (test5_zmsg, "test");
 
 zvector_send_prepare (test5_self, test5_zmsg);
-zframe_t *test5_popped_frame = zmsg_pop (test5_zmsg);
-zhashx_t *test5_unpacked_clock = zhashx_unpack_own (test5_popped_frame, s_deserialize_clock_value);
+char *test5_clock_string = zmsg_popstr (test5_zmsg);
+zvector_t *test5_unpacked_clock = zvector_from_string (test5_clock_string);
 char *test5_unpacked_string = zmsg_popstr (test5_zmsg);
 assert (streq (test5_unpacked_string, "test"));
-assert ( *(unsigned long *) zhashx_lookup (test5_unpacked_clock, "1000") == 2 );
+assert ( *(unsigned long *) zhashx_lookup (test5_unpacked_clock->clock, "1000") == 2 );
 
-zframe_destroy (&test5_popped_frame);
+zstr_free (&test5_clock_string);
 zstr_free (&test5_unpacked_string);
-zhashx_destroy (&test5_unpacked_clock);
 zmsg_destroy (&test5_zmsg);
 zvector_destroy (&test5_self);
+zvector_destroy (&test5_unpacked_clock);
 
-
-
-// Simple compare test
-char *test6_self_stringrep = zsys_sprintf ("%s", "VC:3;1000,10;2000,10;3000,10;");
-char *test6_before_stringrep1 = zsys_sprintf ("%s", "VC:2;1100,10;3000,9;");
-char *test6_before_stringrep2 = zsys_sprintf ("%s", "VC:3;1100,10;2100,10;3000,9;");
-char *test6_before_stringrep3 = zsys_sprintf ("%s", "VC:4;1100,10;2100,10;3000,9;4000,9");
-char *test6_parallel_stringrep1 = zsys_sprintf ("%s", "VC:2;1500,10;2500,10;");
-char *test6_parallel_stringrep2 = zsys_sprintf ("%s", "VC:3;1500,10;2500,10;3500,10;");
-char *test6_parallel_stringrep3 = zsys_sprintf ("%s", "VC:4;500,20;1500,10;2500,10;3500,10;");
-char *test6_after_stringrep1 = zsys_sprintf ("%s", "VC:2;1000,11;2200,10;");
-char *test6_after_stringrep2 = zsys_sprintf ("%s", "VC:3;1200,10;2200,10;3000,11;");
-char *test6_after_stringrep3 = zsys_sprintf ("%s", "VC:4;1200,10;2200,10;3000,11;2000,11;");
+// TEST: compare
+char *test6_self_stringrep = zsys_sprintf ("%s", "VC:3;own:p2;p1,2;p2,2;p3,2;");
+char *test6_before_stringrep1 = zsys_sprintf ("%s", "VC:2;own:p3;p1,1;p3,2;");
+char *test6_before_stringrep2 = zsys_sprintf ("%s", "VC:2;own:p2;p1,2;p2,1;");
+char *test6_before_stringrep3 = zsys_sprintf ("%s", "VC:1;own:p1;p1,1;");
+char *test6_parallel_stringrep1 = zsys_sprintf ("%s", "VC:1;own:p1;p1,3;");
+char *test6_parallel_stringrep2 = zsys_sprintf ("%s", "VC:2;own:p3;p1,1;p3,3;");
+char *test6_parallel_stringrep3 = zsys_sprintf ("%s", "VC:2;own:p1;p1,4;p3,3;");
+char *test6_after_stringrep1 = zsys_sprintf ("%s", "VC:3;own:p2;p1,2;p2,3;p3,2;");
+char *test6_after_stringrep2 = zsys_sprintf ("%s", "VC:3;own:p3;p1,2;p2,3;p3,4;");
 zvector_t *test6_self = zvector_from_string (test6_self_stringrep);
 zvector_t *test6_before1 = zvector_from_string (test6_before_stringrep1);
 zvector_t *test6_before2 = zvector_from_string (test6_before_stringrep2);
@@ -183,18 +181,15 @@ zvector_t *test6_parallel2 = zvector_from_string (test6_parallel_stringrep2);
 zvector_t *test6_parallel3 = zvector_from_string (test6_parallel_stringrep3);
 zvector_t *test6_after1 = zvector_from_string (test6_after_stringrep1);
 zvector_t *test6_after2 = zvector_from_string (test6_after_stringrep2);
-zvector_t *test6_after3 = zvector_from_string (test6_after_stringrep3);
 
-assert ( zvector_compare_to (test6_self, test6_before1) == -1);
-assert ( zvector_compare_to (test6_self, test6_before2) == -1);
-assert ( zvector_compare_to (test6_self, test6_before3) == -1);
-assert ( zvector_compare_to (test6_self, test6_parallel1) == 0);
-assert ( zvector_compare_to (test6_self, test6_parallel2) == 0);
-assert ( zvector_compare_to (test6_self, test6_parallel3) == 0);
-assert ( zvector_compare_to (test6_self, test6_after1) == 1);
-assert ( zvector_compare_to (test6_self, test6_after2) == 1);
-assert ( zvector_compare_to (test6_self, test6_after3) == 1);
-assert ( zvector_compare_to (test6_self, test6_self) == 2);
+assert (zvector_compare_to (test6_self, test6_before1) == 1);
+assert (zvector_compare_to (test6_self, test6_before2) == 1);
+assert (zvector_compare_to (test6_self, test6_before3) == 1);
+assert (zvector_compare_to (test6_self, test6_parallel1) == 0);
+assert (zvector_compare_to (test6_self, test6_parallel2) == 0);
+assert (zvector_compare_to (test6_self, test6_parallel3) == 0);
+assert (zvector_compare_to (test6_self, test6_after1) == -1);
+assert (zvector_compare_to (test6_self, test6_after2) == -1);
 
 zstr_free (&test6_self_stringrep);
 zstr_free (&test6_before_stringrep1);
@@ -205,7 +200,7 @@ zstr_free (&test6_parallel_stringrep2);
 zstr_free (&test6_parallel_stringrep3);
 zstr_free (&test6_after_stringrep1);
 zstr_free (&test6_after_stringrep2);
-zstr_free (&test6_after_stringrep3);
+
 zvector_destroy (&test6_self);
 zvector_destroy (&test6_before1);
 zvector_destroy (&test6_before2);
@@ -215,8 +210,4 @@ zvector_destroy (&test6_parallel2);
 zvector_destroy (&test6_parallel3);
 zvector_destroy (&test6_after1);
 zvector_destroy (&test6_after2);
-zvector_destroy (&test6_after3);
-
-
-
 ----

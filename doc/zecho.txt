@@ -109,7 +109,6 @@ if (verbose) {
 }
 
 zecho_init (echo1);
-zclock_sleep (500);
 
 zyre_event_t *event = NULL;
 
@@ -121,7 +120,7 @@ do {
         break;
 } while (1);
 char *type = zmsg_popstr (zyre_event_msg (event));
-assert (streq (type, "ZE"));
+assert (streq (type, "ZECHO"));
 zstr_free (&type);
 zecho_recv (echo2, event);
 
@@ -133,7 +132,7 @@ do {
         break;
 } while (1);
 type = zmsg_popstr (zyre_event_msg (event));
-assert (streq (type, "ZE"));
+assert (streq (type, "ZECHO"));
 zstr_free (&type);
 zecho_recv (echo3, event);
 
@@ -145,7 +144,7 @@ do {
         break;
 } while (1);
 type = zmsg_popstr (zyre_event_msg (event));
-assert (streq (type, "ZE"));
+assert (streq (type, "ZECHO"));
 zstr_free (&type);
 zecho_recv (echo2, event);
 
@@ -157,7 +156,7 @@ do {
         break;
 } while (1);
 type = zmsg_popstr (zyre_event_msg (event));
-assert (streq (type, "ZE"));
+assert (streq (type, "ZECHO"));
 zstr_free (&type);
 zecho_recv (echo1, event);
 
