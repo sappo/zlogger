@@ -85,31 +85,6 @@ zvector_new (const char *pid)
 
 
 //  --------------------------------------------------------------------------
-//  Duplicates the given zvector, returns a dulpicate
-
-zvector_t *
-zvector_duplicate (zvector_t *self)
-{
-    assert (self);
-
-    zvector_t *ret = zvector_new (self->own_pid);
-    zhashx_purge (ret->clock);
-    unsigned long *value = (unsigned long *) zhashx_first (self->clock);
-    const char *pid = (const char *) zhashx_cursor (self->clock);
-
-    while (value) {
-      zhashx_insert (ret->clock, pid, value);
-
-      value = (unsigned long *) zhashx_next (self->clock);
-      pid = (const char *) zhashx_cursor (self->clock);
-    }
-
-    return ret;
-}
-
-
-
-//  --------------------------------------------------------------------------
 //  Destroy the zvector
 
 void
@@ -350,6 +325,30 @@ zvector_info (zvector_t *self, char *format, ...)
     zstr_free (&logmsg);
     zstr_free (&clockstr);
     zvector_event (self);
+}
+
+
+
+//  --------------------------------------------------------------------------
+//  Duplicates the given zvector, returns a freshly allocated dulpicate.
+
+zvector_t *
+zvector_dup (zvector_t *self)
+{
+    assert (self);
+
+    zvector_t *dup = zvector_new (self->own_pid);
+    zhashx_purge (dup->clock);
+
+    unsigned long *value = (unsigned long *) zhashx_first (self->clock);
+    const char *pid = (const char *) zhashx_cursor (self->clock);
+    while (value) {
+      zhashx_insert (dup->clock, pid, value);
+      value = (unsigned long *) zhashx_next (self->clock);
+      pid = (const char *) zhashx_cursor (self->clock);
+    }
+
+    return dup;
 }
 
 
