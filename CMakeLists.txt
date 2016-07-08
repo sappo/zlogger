@@ -12,6 +12,7 @@ enable_language(C)
 enable_testing()
 
 set(SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 ########################################################################
 # options
@@ -209,8 +210,14 @@ set_target_properties(
 ########################################################################
 # tests
 ########################################################################
-set(CLASSTEST_TIMEOUT 5 CACHE STRING "Timeout of the selftest of a class")
-set(TOTAL_TIMEOUT 20 CACHE STRING "Timout of the total testsuite")
+set(CLASSTEST_TIMEOUT 60 CACHE STRING "Timeout of the selftest of a class")
+set(TOTAL_TIMEOUT 600 CACHE STRING "Timout of the total testsuite")
+
+if(UNIX)
+    find_program(MEMORYCHECK_COMMAND valgrind)
+    set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full --show-reachable=yes --error-exitcode=1")
+    set(MEMORYCHECK_SUPPRESSIONS_FILE "${SOURCE_DIR}/src/.valgrind.supp")
+endif()
 
 set(TEST_CLASSES
 )
@@ -235,6 +242,35 @@ foreach(TEST_CLASS ${TEST_CLASSES})
     )
 endforeach(TEST_CLASS)
 
+include(CTest)
+
+########################################################################
+# cleanup
+########################################################################
+add_custom_target (distclean @echo Cleaning for source distribution)
+
+set(cmake_generated ${CMAKE_BINARY_DIR}/CMakeCache.txt
+                    ${CMAKE_BINARY_DIR}/cmake_install.cmake
+                    ${CMAKE_BINARY_DIR}/Makefile
+                    ${CMAKE_BINARY_DIR}/CMakeFiles
+                    ${CMAKE_BINARY_DIR}/CTestTestfile.cmake
+                    ${CMAKE_BINARY_DIR}/DartConfiguration.tcl
+                    ${CMAKE_BINARY_DIR}/Testing
+                    ${CMAKE_BINARY_DIR}/compile_commands.json
+                    ${CMAKE_BINARY_DIR}/src/platform.h
+                    ${CMAKE_BINARY_DIR}/src/libzlog.pc
+                    ${CMAKE_BINARY_DIR}/src/libzlog.so
+                    ${CMAKE_BINARY_DIR}/src/zlogger_selftest
+                    ${CMAKE_BINARY_DIR}/src/zlog_selftest
+)
+
+add_custom_command(
+    DEPENDS clean
+    COMMENT "distribution clean"
+    COMMAND rm
+    ARGS    -rf CMakeTmp ${cmake_generated}
+    TARGET  distclean
+)
 
 ########################################################################
 # summary

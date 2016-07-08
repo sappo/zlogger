@@ -91,7 +91,6 @@ This is the class self test code:
     zactor_destroy (&zlog3);
     /*zactor_destroy (&zlog4);*/
     
-    
-    zlog_order_log ("/var/log/vc.log", "ordered_vc1.log");
+    /*zlog_order_log ("/var/log/vc.log", "ordered_vc1.log");*/
 ```
 

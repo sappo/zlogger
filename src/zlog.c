@@ -101,7 +101,7 @@ zlog_destroy (zlog_t **self_p)
         zlog_t *self = *self_p;
 
         //  Free actor properties
-        zvector_dump_time_space (self->clock);
+        /*zvector_dump_time_space (self->clock);*/
         zvector_destroy (&self->clock);
         zelection_destroy (&self->election);
         zyre_destroy (&self->node);
@@ -357,20 +357,20 @@ zlog_test (bool verbose)
     char *params3[3] = {"inproc://logger3", "logger3", "GOSSIP SLAVE"};
     zactor_t *zlog3 = zactor_new (zlog_actor, params3);
 
-    char *params4[3] = {"inproc://logger4", "logger4", "GOSSIP SLAVE"};
-    zactor_t *zlog4 = zactor_new (zlog_actor, params4);
+    /*char *params4[3] = {"inproc://logger4", "logger4", "GOSSIP SLAVE"};*/
+    /*zactor_t *zlog4 = zactor_new (zlog_actor, params4);*/
 
     if (verbose) {
         zstr_send (zlog, "VERBOSE");
         zstr_send (zlog2, "VERBOSE");
         zstr_send (zlog3, "VERBOSE");
-        zstr_send (zlog4, "VERBOSE");
+        /*zstr_send (zlog4, "VERBOSE");*/
     }
 
     zstr_send (zlog, "START");
     zstr_send (zlog2, "START");
     zstr_send (zlog3, "START");
-    zstr_send (zlog4, "START");
+    /*zstr_send (zlog4, "START");*/
 
     //  Give time to interconnect and elect
     zclock_sleep (750);
@@ -378,7 +378,7 @@ zlog_test (bool verbose)
     zstr_send (zlog, "STOP");
     zstr_send (zlog2, "STOP");
     zstr_send (zlog3, "STOP");
-    zstr_send (zlog4, "STOP");
+    /*zstr_send (zlog4, "STOP");*/
 
     //  Give time to disconnect
     zclock_sleep (250);
@@ -386,10 +386,9 @@ zlog_test (bool verbose)
     zactor_destroy (&zlog);
     zactor_destroy (&zlog2);
     zactor_destroy (&zlog3);
-    zactor_destroy (&zlog4);
+    /*zactor_destroy (&zlog4);*/
 
-
-    //zlog_order_log ("/var/log/vc.log", "ordered_vc1.log");
+    /*zlog_order_log ("/var/log/vc.log", "ordered_vc1.log");*/
     //  @end
 
     printf ("OK\n");
