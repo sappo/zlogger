@@ -24,11 +24,13 @@
 struct _zvector_t {
     char *own_pid;
     zhashx_t *clock;
+    zlist_t *space_time_states;
+    zlist_t *space_time_events;
 };
 
 
 //  --------------------------------------------------------------------------
-//  Local helper
+//  Local helper functions
 
 static void
 s_destroy_clock_value (void **clock_value_p)
@@ -38,28 +40,6 @@ s_destroy_clock_value (void **clock_value_p)
         unsigned long *clock_value = (unsigned long *) *clock_value_p;
         free (clock_value);
     }
-}
-
-
-//  Serializes an unsigned long into a string
-
-static char *
-s_serialize_clock_value (const void *item)
-{
-    return zsys_sprintf ("%lu", *(unsigned long *) item);
-}
-
-
-//  Deserializes a string representation of clock value into an unsigned long
-
-static void *
-s_deserialize_clock_value (const char *item)
-{
-    assert (item);
-    unsigned long *result = (unsigned long *) zmalloc (sizeof (unsigned long));
-    sscanf (item, "%lu", result);
-
-    return result;
 }
 
 
@@ -75,6 +55,8 @@ zvector_new (const char *pid)
     //  Initialize class properties here
     self->own_pid = strdup (pid);
     self->clock = zhashx_new ();
+    self->space_time_states = zlist_new ();
+    self->space_time_events = zlist_new ();
     zhashx_set_destructor (self->clock, s_destroy_clock_value);
     unsigned long *clock_val = (unsigned long *) zmalloc (sizeof (unsigned long));
     *clock_val = 0;
@@ -96,6 +78,10 @@ zvector_destroy (zvector_t **self_p)
         //  Free class properties here
         zstr_free (&self->own_pid);
         zhashx_destroy (&self->clock);
+        zlist_autofree (self->space_time_states);
+        zlist_destroy (&self->space_time_states);
+        zlist_autofree (self->space_time_events);
+        zlist_destroy (&self->space_time_events);
         //  Free object itself
         free (self);
         *self_p = NULL;
@@ -112,6 +98,8 @@ zvector_event (zvector_t *self)
     assert (self);
     unsigned long *own_clock_value = (unsigned long *) zhashx_lookup (self->clock, self->own_pid);
     (*own_clock_value)++;
+
+    zlist_append (self->space_time_states, zvector_to_string (self));
 }
 
 
@@ -125,8 +113,9 @@ zvector_send_prepare (zvector_t *self, zmsg_t *msg)
     assert (msg);
 
     zvector_event (self);
-    zframe_t *packed_clock = zhashx_pack_own (self->clock, s_serialize_clock_value);
-    zmsg_prepend (msg, &packed_clock);
+    char *clock_string = zvector_to_string (self);
+    zmsg_pushstr (msg, clock_string);
+    zstr_free (&clock_string);
     return msg;
 }
 
@@ -140,11 +129,19 @@ zvector_recv (zvector_t *self, zmsg_t *msg)
     assert (self);
     assert (msg);
 
-    zframe_t *packed_clock = zmsg_pop (msg);
-    zhashx_t *sender_clock = zhashx_unpack_own (packed_clock, s_deserialize_clock_value);
-    zhashx_set_destructor (sender_clock, s_destroy_clock_value);
+    char *clock_string = zmsg_popstr (msg);
+    zvector_t *sender_vector = zvector_from_string (clock_string);
+    zstr_free (&clock_string);
+
+    zhashx_t *sender_clock = sender_vector->clock;
 
     zvector_event (self);
+    char *self_clock_string = zvector_to_string (self);
+    clock_string = zvector_to_string (sender_vector);
+    zlist_append (self->space_time_events, zsys_sprintf ("\"%s\" -> \"%s\"\n",
+                                                         clock_string, self_clock_string));
+    zstr_free (&clock_string);
+    zstr_free (&self_clock_string);
 
     zlistx_t *sender_clock_procs = zhashx_keys (sender_clock);
     const char *pid = (const char *) zlistx_first (sender_clock_procs);
@@ -166,9 +163,8 @@ zvector_recv (zvector_t *self, zmsg_t *msg)
         pid = (const char*) zlistx_next (sender_clock_procs);
     }
 
-    zframe_destroy (&packed_clock);
     zlistx_destroy (&sender_clock_procs);
-    zhashx_destroy (&sender_clock);
+    zvector_destroy (&sender_vector);
 }
 
 
@@ -327,6 +323,43 @@ zvector_info (zvector_t *self, char *format, ...)
     zvector_event (self);
 }
 
+void
+zvector_dump_time_space (zvector_t *self)
+{
+    assert (self);
+    FILE *file_dst = fopen(self->own_pid, "w");
+    assert (file_dst);
+    const char newLineSymbol = '\n';
+    const char *line;
+
+    char *subgraph_string = zsys_sprintf ("subgraph c_%s {\n" \
+                                          "  label = \"P#%s\"\n",
+                                          self->own_pid,
+                                          self->own_pid);
+    fwrite (subgraph_string, 1, strlen (subgraph_string), file_dst);
+    zstr_free (&subgraph_string);
+
+    line = (const char *) zlist_first (self->space_time_states);
+    while (line != NULL) {
+        fwrite ("\"", 1, 1, file_dst);
+        fwrite (line, 1, strlen (line), file_dst);
+        fwrite ("\"", 1, 1, file_dst);
+        line = (const char *) zlist_next (self->space_time_states);
+        if (line)
+            fwrite (" -> ", 1, 4, file_dst);
+    }
+
+    fwrite (";\n}\n", 1, 4, file_dst);
+
+    line = (const char *) zlist_first (self->space_time_events);
+    while (line != NULL) {
+        fwrite (line, 1, strlen (line), file_dst);
+        fwrite (";", 1, 1, file_dst);
+        fwrite (&newLineSymbol, 1, 1, file_dst);
+        line = (const char *) zlist_next (self->space_time_events);
+    }
+    fclose (file_dst);
+}
 
 
 //  --------------------------------------------------------------------------
@@ -385,22 +418,17 @@ zvector_test (bool verbose)
     printf (" * zvector: ");
 
     //  @selftest
-
-
-
-    //  Simple create/destroy test of zvector_t
+    //  TEST: create/destroy zvector_t
     zvector_t *test1_self = zvector_new ("1000");
     assert (test1_self);
     zvector_destroy (&test1_self);
 
-
-
-    // Simple test for converting a zvector to stringrepresentation
-    // and from stringrepresentation to a zvector
+    //  TEST: for converting a zvector to stringrepresentation and from
+    //        string represenstation to zvector.
     zvector_t *test2_self = zvector_new ("1000");
     assert (test2_self);
 
-    // inserting some clocks & values
+    //  Inserting some clocks & values
     zvector_event (test2_self);
     unsigned long *test2_inserted_value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
     *test2_inserted_value1 = 7;
@@ -421,9 +449,7 @@ zvector_test (bool verbose)
     zvector_destroy (&test2_self);
     zvector_destroy (&test2_generated);
 
-
-
-    //  Simple event test
+    //  TEST: events
     zvector_t *test3_self = zvector_new ("1000");
     assert (test3_self);
 
@@ -435,34 +461,25 @@ zvector_test (bool verbose)
     zvector_event (test3_self);
     assert ( *(unsigned long *) zhashx_lookup (test3_self->clock, "1000") == 1 );
     assert ( *(unsigned long *) zhashx_lookup (test3_self->clock, "1001") == 5 );
-
     zvector_destroy (&test3_self);
 
-
-
-    //  Simple recv test
+    //  TEST: recv test
     zvector_t *test4_self_clock = zvector_new ("1000");
     char *test4_sender_clock1_stringRep = zsys_sprintf ("%s", "VC:2;own:1001;1000,5;1001,10;");
     char *test4_sender_clock2_stringRep = zsys_sprintf ("%s", "VC:2;own:1002;1000,20;1002,30;");
-    zvector_t *test4_sender_clock1 = zvector_from_string (test4_sender_clock1_stringRep);
-    zvector_t *test4_sender_clock2 = zvector_from_string (test4_sender_clock2_stringRep);
     assert (test4_self_clock);
-    assert (test4_sender_clock1);
-    assert (test4_sender_clock2);
 
-    // receive sender clock 1 and add key-value pairs to own clock
+    //  Receive sender clock 1 and add key-value pairs to own clock
     zmsg_t *test4_msg1 = zmsg_new ();
-    zframe_t *test4_packed_clock1 = zhashx_pack_own (test4_sender_clock1->clock, s_serialize_clock_value);
-    zmsg_prepend (test4_msg1, &test4_packed_clock1);
+    zmsg_pushstr (test4_msg1, test4_sender_clock1_stringRep);
     zvector_recv (test4_self_clock, test4_msg1);
     zmsg_destroy (&test4_msg1);
     assert ( *(unsigned long *) zhashx_lookup (test4_self_clock->clock, "1000") == 5 );
     assert ( *(unsigned long *) zhashx_lookup (test4_self_clock->clock, "1001") == 10 );
 
-    // receive sender clock 2 and add key-value pairs to own clock
+    //  Receive sender clock 2 and add key-value pairs to own clock
     test4_msg1 = zmsg_new ();
-    zframe_t *test4_packed_clock2 = zhashx_pack_own (test4_sender_clock2->clock, s_serialize_clock_value);
-    zmsg_prepend (test4_msg1, &test4_packed_clock2);
+    zmsg_pushstr (test4_msg1, test4_sender_clock2_stringRep);
     zvector_recv (test4_self_clock, test4_msg1);
     zmsg_destroy (&test4_msg1);
     assert ( *(unsigned long *) zhashx_lookup (test4_self_clock->clock, "1000") == 20 );
@@ -472,12 +489,8 @@ zvector_test (bool verbose)
     zstr_free (&test4_sender_clock1_stringRep);
     zstr_free (&test4_sender_clock2_stringRep);
     zvector_destroy (&test4_self_clock);
-    zvector_destroy (&test4_sender_clock1);
-    zvector_destroy (&test4_sender_clock2);
 
-
-
-    // Simple send_prepare test
+    // TEST: send prepare
     zvector_t *test5_self = zvector_new ("1000");
     assert (test5_self);
     zvector_event (test5_self);
@@ -485,20 +498,19 @@ zvector_test (bool verbose)
     zmsg_pushstr (test5_zmsg, "test");
 
     zvector_send_prepare (test5_self, test5_zmsg);
-    zframe_t *test5_popped_frame = zmsg_pop (test5_zmsg);
-    zhashx_t *test5_unpacked_clock = zhashx_unpack_own (test5_popped_frame, s_deserialize_clock_value);
+    char *test5_clock_string = zmsg_popstr (test5_zmsg);
+    zvector_t *test5_unpacked_clock = zvector_from_string (test5_clock_string);
     char *test5_unpacked_string = zmsg_popstr (test5_zmsg);
     assert (streq (test5_unpacked_string, "test"));
-    assert ( *(unsigned long *) zhashx_lookup (test5_unpacked_clock, "1000") == 2 );
+    assert ( *(unsigned long *) zhashx_lookup (test5_unpacked_clock->clock, "1000") == 2 );
 
-    zframe_destroy (&test5_popped_frame);
+    zstr_free (&test5_clock_string);
     zstr_free (&test5_unpacked_string);
-    zhashx_destroy (&test5_unpacked_clock);
     zmsg_destroy (&test5_zmsg);
     zvector_destroy (&test5_self);
+    zvector_destroy (&test5_unpacked_clock);
 
-
-    // Simple compare test
+    // TEST: compare
     char *test6_self_stringrep = zsys_sprintf ("%s", "VC:3;own:p2;p1,2;p2,2;p3,2;");
     char *test6_before_stringrep1 = zsys_sprintf ("%s", "VC:2;own:p3;p1,1;p3,2;");
     char *test6_before_stringrep2 = zsys_sprintf ("%s", "VC:2;own:p2;p1,2;p2,1;");

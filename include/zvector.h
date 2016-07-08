@@ -42,6 +42,9 @@ ZLOG_EXPORT char *
 ZLOG_EXPORT zvector_t *
     zvector_from_string (char *clock_string);
 
+ZLOG_EXPORT void
+    zvector_dump_time_space (zvector_t *self);
+
 //  Compares zvector self to zvector other.
 //  Returns -1 at happened before self, 0 at parallel, 1 at happened after
 //  and 2 when clocks are the same

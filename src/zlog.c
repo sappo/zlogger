@@ -101,6 +101,7 @@ zlog_destroy (zlog_t **self_p)
         zlog_t *self = *self_p;
 
         //  Free actor properties
+        zvector_dump_time_space (self->clock);
         zvector_destroy (&self->clock);
         zelection_destroy (&self->election);
         zyre_destroy (&self->node);
