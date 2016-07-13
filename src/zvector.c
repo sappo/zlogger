@@ -200,6 +200,7 @@ zvector_to_string (zvector_t *self)
   tmp_val_length = *value;
 
   while (value) {
+
     string_length += strlen (pid);
 
     // calc digits of clock_value
@@ -229,6 +230,82 @@ zvector_to_string (zvector_t *self)
   strcat(result, ";");
   while (value) {
     strcat (result, pid);
+    strcat (result, ",");
+    sprintf(tmp_string, "%lu", *value);
+    strcat (result, tmp_string);
+    strcat (result, ";");
+
+    value = (unsigned long *) zhashx_next (self->clock);
+    pid = (const char *) zhashx_cursor (self->clock);
+  }
+
+  return result;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Converts the zvector into string representation with pid_length
+
+char *
+zvector_to_string_short (zvector_t *self, uint8_t pid_length)
+{
+  assert (self);
+
+  //formation: 'VC:$numberOfClocks;own:$ownPid;$pid1,$val1;...;$pidx,$valx;\0'
+  char *result = NULL;
+  int string_length = 10;
+  unsigned long tmp_val_length = 0;
+
+  int vector_size = zhashx_size (self->clock);
+
+  // calculate needed chars for allocation
+  // own pid
+  string_length += pid_length;
+
+  // digits needed for numberOfClocks
+  tmp_val_length = vector_size;
+  while (tmp_val_length) {
+      tmp_val_length /= 10;
+      string_length += 1;
+  }
+
+  // chars needed for seperators
+  string_length += (vector_size * 2);
+  unsigned long *value = (unsigned long *) zhashx_first (self->clock);
+  const char *pid = (const char *) zhashx_cursor (self->clock);
+  tmp_val_length = *value;
+
+  while (value) {
+
+    string_length += pid_length;
+
+    // calc digits of clock_value
+    while (tmp_val_length) {
+        tmp_val_length /= 10;
+        string_length += 1;
+    }
+
+    value = (unsigned long *) zhashx_next (self->clock);
+    pid = (const char*) zhashx_cursor (self->clock);
+
+    if (value)
+      tmp_val_length = *value;
+  }
+
+  result = (char *) zmalloc (string_length * sizeof (char));
+
+  // fill up string
+  value = (unsigned long *) zhashx_first (self->clock);
+  pid = (const char *) zhashx_cursor (self->clock);
+  char tmp_string[11]; // max digits of an unsigned long value
+  tmp_string[10] = '\0';
+
+  sprintf(result, "VC:%d;", vector_size);
+  strcat(result, "own:");
+  strncat(result, self->own_pid, pid_length);
+  strcat(result, ";");
+  while (value) {
+    strncat (result, pid, pid_length);
     strcat (result, ",");
     sprintf(tmp_string, "%lu", *value);
     strcat (result, tmp_string);
@@ -593,6 +670,8 @@ zvector_test (bool verbose)
     zvector_destroy (&test6_parallel3);
     zvector_destroy (&test6_after1);
     zvector_destroy (&test6_after2);
+
+
     //  @end
     printf ("OK\n");
 }

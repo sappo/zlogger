@@ -38,6 +38,10 @@ ZLOG_EXPORT void
 ZLOG_EXPORT char *
     zvector_to_string (zvector_t *self);
 
+//  Converts the zvector into string representation with pid_length
+ZLOG_EXPORT char *
+    zvector_to_string_short (zvector_t *self, uint8_t pid_length);
+
 //  Creates a zvector from a given string representation
 ZLOG_EXPORT zvector_t *
     zvector_from_string (char *clock_string);
