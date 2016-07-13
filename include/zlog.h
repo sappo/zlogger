@@ -44,12 +44,17 @@ extern "C" {
 ZLOG_EXPORT void
     zlog_actor (zsock_t *pipe, void *args);
 
-
 //  --------------------------------------------------------------------------
 //  Compares the zvector_t's of given logMsg a to logMsg b.
 //  Returns -1 if a < b, 0 if a = b, 1 if a > b and 2 if a and b parallel
 ZLOG_EXPORT int
-    zlog_compare_logMsg (const char *logMsg_a, const char *logMsg_b);
+    zlog_compare_log_msg_vc (const char *logMsg_a, const char *logMsg_b);
+
+//  --------------------------------------------------------------------------
+//  Compares the timestamps's of given logMsg a to logMsg b.
+//  Returns -1 if a < b, 0 if a = b, 1 if a > b and 2 if a and b parallel
+ZLOG_EXPORT int
+    zlog_compare_log_msg_ts (const char *logMsg_a, const char *logMsg_b);
 
 //  Orders log with the given filepath
 ZLOG_EXPORT void
