@@ -39,8 +39,8 @@ struct _zlog_t {
 static zvector_t *
 s_get_clock_from_log_msg (char *logMsg);
 
-//static int
-//s_get_timestamp_from_logMsg (char *logMsg);
+static unsigned long long *
+s_get_timestamp_from_logMsg (char *logMsg);
 
 static int
 s_zlog_recv_api (zloop_t *loop, zsock_t *reader, void *arg);
@@ -170,15 +170,25 @@ s_get_clock_from_log_msg (char *logMsg)
   return ret;
 }
 
-//  Extracts the timestamo from a given logMsg and returns as int
-/*
-static int
+
+//  Extracts the timestamp from a given logMsg
+
+static unsigned long long *
 s_get_timestamp_from_logMsg (char *logMsg)
 {
   assert (logMsg);
-  return 1;
+
+  char *log = strdup (logMsg);
+  char *ts_ptr = NULL;
+  ts_ptr = strtok(log, " ");
+  unsigned long long *ts_val = (unsigned long long *) zmalloc (sizeof (unsigned long long));
+  *ts_val = strtoull(ts_ptr, NULL, 10);
+
+  zstr_free (&log);
+
+  return ts_val;
 }
-*/
+
 
 //  Here we handle incoming message from the node
 
@@ -278,11 +288,32 @@ zlog_actor (zsock_t *pipe, void *args)
 
 
 //  --------------------------------------------------------------------------
+//  Compares the timestamps's of given logMsg a to logMsg b.
+//  Returns -1 if a < b, 0 if a = b, 1 if a > b and 2 if a and b parallel
+
+int
+zlog_compare_log_msg_ts (const char *log_msg_a, const char *log_msg_b)
+{
+  unsigned long long *ts_a = s_get_timestamp_from_logMsg ((char *)log_msg_a);
+  unsigned long long *ts_b = s_get_timestamp_from_logMsg ((char *)log_msg_b);
+
+  int ret = 0;
+  if (*ts_a < *ts_b) {
+    ret = -1;
+  } else {
+    ret = 1;
+  }
+
+  return ret;
+}
+
+
+//  --------------------------------------------------------------------------
 //  Compares the zvector_t's of given logMsg a to logMsg b.
 //  Returns -1 if a < b, 0 if a = b, 1 if a > b and 2 if a and b parallel
 
 int
-zlog_compare_log_msg (const char *log_msg_a, const char *log_msg_b)
+zlog_compare_log_msg_vc (const char *log_msg_a, const char *log_msg_b)
 {
   zvector_t *clock_a = s_get_clock_from_log_msg ((char *)log_msg_a);
   zvector_t *clock_b = s_get_clock_from_log_msg ((char *)log_msg_b);
@@ -312,7 +343,7 @@ zlog_order_log (const char *path_src, const char *path_dst)
   zlistx_t *ordered_list = zlistx_new ();
   zlistx_set_destructor (ordered_list, (zlistx_destructor_fn *) zstr_free);
   zlistx_set_duplicator (ordered_list, (zlistx_duplicator_fn *) strdup);
-  zlistx_set_comparator (ordered_list, (zlistx_comparator_fn *) zlog_compare_log_msg);
+  zlistx_set_comparator (ordered_list, (zlistx_comparator_fn *) zlog_compare_log_msg_vc);
 
   // Insert data in a ordered_list and order it with given compare function
   const char *line = zfile_readln (file_src);
@@ -388,7 +419,7 @@ zlog_test (bool verbose)
     zactor_destroy (&zlog3);
     /*zactor_destroy (&zlog4);*/
 
-    /*zlog_order_log ("/var/log/vc.log", "ordered_vc1.log");*/
+    zlog_order_log ("/var/log/vc.log", "ordered_vc1.log");
     //  @end
 
     printf ("OK\n");
