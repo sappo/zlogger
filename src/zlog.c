@@ -289,7 +289,7 @@ zlog_actor (zsock_t *pipe, void *args)
 
 //  --------------------------------------------------------------------------
 //  Compares the timestamps's of given logMsg a to logMsg b.
-//  Returns -1 if a < b, 0 if a = b, 1 if a > b and 2 if a and b parallel
+//  Returns -1 if a < b, otherwiese 1
 
 int
 zlog_compare_log_msg_ts (const char *log_msg_a, const char *log_msg_b)
@@ -303,7 +303,7 @@ zlog_compare_log_msg_ts (const char *log_msg_a, const char *log_msg_b)
 
 //  --------------------------------------------------------------------------
 //  Compares the zvector_t's of given logMsg a to logMsg b.
-//  Returns -1 if a < b, 0 if a = b, 1 if a > b and 2 if a and b parallel
+//  Returns -1 if a < b, otherwiese 1
 
 int
 zlog_compare_log_msg_vc (const char *log_msg_a, const char *log_msg_b)
@@ -319,10 +319,11 @@ zlog_compare_log_msg_vc (const char *log_msg_a, const char *log_msg_b)
 }
 
 //  --------------------------------------------------------------------------
-//  Orders log with the given filepath
+//  Reads log of source filepath and orders it with given
+//  pointer to compare_function into destination filepath.
 
 void
-zlog_order_log (const char *path_src, const char *path_dst)
+zlog_order_log (const char *path_src, const char *path_dst, zlistx_comparator_fn *compare_function)
 {
   assert (path_src);
   assert (path_dst);
@@ -336,7 +337,7 @@ zlog_order_log (const char *path_src, const char *path_dst)
   zlistx_t *ordered_list = zlistx_new ();
   zlistx_set_destructor (ordered_list, (zlistx_destructor_fn *) zstr_free);
   zlistx_set_duplicator (ordered_list, (zlistx_duplicator_fn *) strdup);
-  zlistx_set_comparator (ordered_list, (zlistx_comparator_fn *) zlog_compare_log_msg_vc);
+  zlistx_set_comparator (ordered_list, (zlistx_comparator_fn *) compare_function);
 
   // Insert data in a ordered_list and order it with given compare function
   const char *line = zfile_readln (file_src);
@@ -351,7 +352,6 @@ zlog_order_log (const char *path_src, const char *path_dst)
   while (line != NULL) {
     fwrite (line, 1, strlen (line), file_dst);
     fwrite (&newLineSymbol, 1, 1, file_dst);
-    //printf("%s %lu\n", line, strlen (line));
     line = (const char *) zlistx_next (ordered_list);
   }
 
@@ -412,7 +412,7 @@ zlog_test (bool verbose)
     zactor_destroy (&zlog3);
     /*zactor_destroy (&zlog4);*/
 
-    zlog_order_log ("/var/log/vc.log", "ordered_vc1.log");
+    zlog_order_log ("/var/log/vc.log", "ordered_vc1.log", (zlistx_comparator_fn *) zlog_compare_log_msg_vc);
     //  @end
 
     printf ("OK\n");
