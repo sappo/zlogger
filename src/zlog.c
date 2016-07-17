@@ -297,14 +297,7 @@ zlog_compare_log_msg_ts (const char *log_msg_a, const char *log_msg_b)
   unsigned long long *ts_a = s_get_timestamp_from_logMsg ((char *)log_msg_a);
   unsigned long long *ts_b = s_get_timestamp_from_logMsg ((char *)log_msg_b);
 
-  int ret = 0;
-  if (*ts_a < *ts_b) {
-    ret = -1;
-  } else {
-    ret = 1;
-  }
-
-  return ret;
+  return (*ts_a < *ts_b)? -1: 1;
 }
 
 
