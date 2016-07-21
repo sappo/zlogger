@@ -325,7 +325,7 @@ zelection_finished (zelection_t *self)
 
 
 //  --------------------------------------------------------------------------
-//  Set a vector clock handle. Election message will be prepended with the
+//  Set a vector clock handle. Election messages will be prepended with the
 //  vector if not NULL.
 
 void
