@@ -61,7 +61,6 @@ zvector_new (const char *pid)
     zhashx_insert (self->clock, pid, clock_val);
     self->space_time_states = zlist_new ();
     self->space_time_events = zlist_new ();
-    zsys_set_logsystem (true);
     return self;
 }
 
@@ -99,7 +98,7 @@ zvector_event (zvector_t *self)
     unsigned long *own_clock_value = (unsigned long *) zhashx_lookup (self->clock, self->own_pid);
     (*own_clock_value)++;
 
-    zlist_append (self->space_time_states, zvector_to_string (self));
+    zlist_append (self->space_time_states, zvector_to_string_short (self, 3));
 }
 
 
@@ -136,8 +135,8 @@ zvector_recv (zvector_t *self, zmsg_t *msg)
     zhashx_t *sender_clock = sender_vector->clock;
 
     zvector_event (self);
-    char *self_clock_string = zvector_to_string (self);
-    clock_string = zvector_to_string (sender_vector);
+    char *self_clock_string = zvector_to_string_short (self, 3);
+    clock_string = zvector_to_string_short (sender_vector, 3);
     zlist_append (self->space_time_events, zsys_sprintf ("\"%s\" -> \"%s\"\n",
                                                          clock_string, self_clock_string));
     zstr_free (&clock_string);
@@ -430,6 +429,7 @@ zvector_info (zvector_t *self, char *format, ...)
     va_end (argptr);
     char *clockstr = zvector_to_string (self);
     zsys_info ("/%s/ %s", clockstr, logmsg);
+
     zstr_free (&logmsg);
     zstr_free (&clockstr);
     zvector_event (self);
@@ -444,8 +444,9 @@ zvector_dump_time_space (zvector_t *self)
     const char newLineSymbol = '\n';
     const char *line;
 
-    char *subgraph_string = zsys_sprintf ("subgraph c_%s {\n" \
-                                          "  label = \"P#%s\"\n",
+    char *subgraph_string = zsys_sprintf ("    subgraph cluster_%s {\n" \
+                                          "        label = \"P#%s\";\n" \
+                                          "        color = blue;\n",
                                           self->own_pid,
                                           self->own_pid);
     fwrite (subgraph_string, 1, strlen (subgraph_string), file_dst);
@@ -453,7 +454,7 @@ zvector_dump_time_space (zvector_t *self)
 
     line = (const char *) zlist_first (self->space_time_states);
     while (line != NULL) {
-        fwrite ("\"", 1, 1, file_dst);
+        fwrite ("        \"", 1, 8, file_dst);
         fwrite (line, 1, strlen (line), file_dst);
         fwrite ("\"", 1, 1, file_dst);
         line = (const char *) zlist_next (self->space_time_states);
