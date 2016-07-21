@@ -13,7 +13,12 @@
 
 /*
 @header
-    zecho - Implements the echo algorithms
+    zecho - Implements the echo algorithms which consist of two distinct waves.
+            The first wave is to flood the network and build a spanning tree. It
+            can be used to inform peers thus it's also called inform wave. The
+            second wave is flows from the leaves of the spanning tree back to the
+            initiator. It it used to collect things from peers. Collectables are
+            e.g. ACKs or arbitrary data.
 @discuss
 @end
 */
@@ -23,16 +28,19 @@
 //  Structure of our class
 
 struct _zecho_t {
-    unsigned int recv_msg;      //  Counts the number of received mesages.
+    unsigned int recv_msg;      //  Counts the number of received messages.
     char *father;               //  Father in the echo wave
     char *wave_id;              //  Id of the current wave
 
-    zecho_handle_fn *inform_fn;     //  Handler for inform messages
-    void *inform_handler;           //  Inform handler object
-    zecho_handle_fn *collect_fn;    //  Handler for collect messages
-    void *collect_handler;          //  Collect handler object
+    void *inform_handler;                   //  Inform handler object
+    zecho_process_fn *inform_process_fn;    //  Process inform messages
+    zecho_create_fn *inform_create_fn;      //  Create own inform message
+    void *collect_handler;                  //  Collect handler object
+    zecho_process_fn *collect_process_fn;   //  Process collect messages
+    zecho_create_fn *collect_create_fn;     //  Create own collect message
 
-    zyre_t *node;       //  Own zyre handle
+    zyre_t *node;       //  Own zyre handle (not owned!)
+    zvector_t *clock;   //  vector clock handle (not owned!)
     bool verbose;       //  verbose logging?
 };
 
@@ -97,11 +105,15 @@ zecho_init (zecho_t *self)
                 zmsg_t *inform_msg = zmsg_new ();
                 zmsg_addstr (inform_msg, "ZECHO");
                 zmsg_addstr (inform_msg, self->wave_id);
+                zmsg_addstr (inform_msg, "INFORM");
                 //  Get inform message from handler
-                if (self->inform_fn) {
-                    zmsg_t *handler_msg = self->inform_fn (self->inform_handler, NULL);
+                if (self->inform_create_fn) {
+                    zmsg_t *handler_msg = self->inform_create_fn (self, self->inform_handler);
                     zmsg_addmsg (inform_msg, &handler_msg);
                 }
+                if (self->clock)
+                    zvector_send_prepare (self->clock, inform_msg);
+
                 //  Send INFORM message to neighbor
                 zyre_whisper (self->node, neighbor, &inform_msg);
             }
@@ -150,9 +162,11 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
     char *wave_id = zmsg_popstr (zyre_event_msg (token));
     if (self->father && !streq (self->wave_id, wave_id)) {
         zstr_free (&wave_id);
+        zyre_event_destroy (&token);
         return -1;     //  Wrong wave
     }
 
+    char *wave_direction = zmsg_popstr (zyre_event_msg (token));
     if (!self->father) {
         self->father = strdup (zyre_event_peer_uuid (token));
         self->wave_id = wave_id;
@@ -167,11 +181,22 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
                     zmsg_t *inform_msg = zmsg_new ();
                     zmsg_addstr (inform_msg, "ZECHO");
                     zmsg_addstr (inform_msg, self->wave_id);
+                    zmsg_addstr (inform_msg, "INFORM");
+                    //  Process inform message
+                    if (self->inform_process_fn) {
+                        zmsg_t *msg = zyre_event_msg (token);
+                        zmsg_t *popmsg = zmsg_popmsg (msg);
+                        self->inform_process_fn (self, popmsg, self->inform_handler);
+                    }
+
                     //  Get inform message from handler
-                    if (self->inform_fn) {
-                        zmsg_t *handler_msg = self->inform_fn (self->inform_handler, zyre_event_get_msg (token));
+                    if (self->inform_create_fn) {
+                        zmsg_t *handler_msg = self->inform_create_fn (self, self->inform_handler);
                         zmsg_addmsg (inform_msg, &handler_msg);
                     }
+                    if (self->clock)
+                        zvector_send_prepare (self->clock, inform_msg);
+
                     //  Send INFORM message to neighbor
                     zyre_whisper (self->node, neighbor, &inform_msg);
                     if (self->verbose)
@@ -186,6 +211,7 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
             zlist_destroy (&neighbors);
         }
         zlist_destroy (&groups);
+        zyre_event_destroy (&token);
     }
     else
         zstr_free (&wave_id);
@@ -193,31 +219,70 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
     if (self->recv_msg == s_zecho_neighbor_count (self)) {
         if (streq (self->father, "initiator")) {
             //  Decide
-            if (self->collect_fn) {
-                (void *) self->collect_fn (self->collect_handler, zyre_event_get_msg (token));
+            if (token && self->collect_process_fn) {
+                zmsg_t *msg = zyre_event_msg (token);
+                self->collect_process_fn (self, zmsg_popmsg (msg), self->collect_handler);
             }
+
             if (self->verbose)
                 zsys_info ("Decide\n");
-
         }
         else {
             zmsg_t *collect_msg = zmsg_new ();
             zmsg_addstr (collect_msg, "ZECHO");
             zmsg_addstr (collect_msg, self->wave_id);
+            zmsg_addstr (collect_msg, "COLLECT");
+            //  Process message from peer
+            if (token) {
+                if (streq (wave_direction, "INFORM")) {
+                    if (self->inform_process_fn) {
+                        zmsg_t *msg = zyre_event_msg (token);
+                        zmsg_t *popmsg = zmsg_popmsg (msg);
+                        self->inform_process_fn (self, popmsg, self->inform_handler);
+                    }
+                }
+                else
+                if (streq (wave_direction, "COLLECT")) {
+                    if (self->collect_process_fn) {
+                        zmsg_t *msg = zyre_event_msg (token);
+                        zmsg_t *popmsg = zmsg_popmsg (msg);
+                        self->collect_process_fn (self, popmsg, self->collect_handler);
+                    }
+                }
+            }
+
             //  Get collect message from handler
-            if (self->collect_fn) {
-                zmsg_t *handler_msg = self->collect_fn (self->collect_handler, zyre_event_get_msg (token));
+            if (self->collect_create_fn) {
+                zmsg_t *handler_msg = self->collect_create_fn (self, self->collect_handler);
                 zmsg_addmsg (collect_msg, &handler_msg);
             }
+            if (self->clock)
+                zvector_send_prepare (self->clock, collect_msg);
+
             //  Send COLLECT message to father
             zyre_whisper (self->node, self->father, &collect_msg);
             if (self->verbose)
                 zsys_info ("Send to father\n");
 
         }
+        zyre_event_destroy (&token);
+        zstr_free (&wave_direction);
+        return 1;
     }
+    else
+    if (streq (wave_direction, "COLLECT")) {
+        //  Process collect message from peer
+        if (self->collect_process_fn) {
+            zmsg_t *msg = zyre_event_msg (token);
+            zmsg_t *popmsg = zmsg_popmsg (msg);
+            self->collect_process_fn (self, popmsg, self->collect_handler);
+        }
 
-    zyre_event_destroy (&token);
+        if (self->verbose)
+            zsys_info ("Received from peer\n");
+
+    }
+    zstr_free (&wave_direction);
     return 0;
 }
 
@@ -230,6 +295,90 @@ zecho_wave_id (zecho_t *self)
 {
     assert (self);
     return self->wave_id;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Sets a handler which is passed to custom collect functions.
+
+void
+zecho_set_collect_handler (zecho_t *self, void *handler)
+{
+    assert (self);
+    self->collect_handler = handler;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Set a user-defined function to process collect messages from peers; This
+//  function is invoked during the second (incoming) wave.
+
+void
+zecho_set_collect_process (zecho_t *self, zecho_process_fn *process_fn)
+{
+    assert (self);
+    self->collect_process_fn = process_fn;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Set a user-defined function to create a custom message part for the collect
+//  message; This function is invoked during the second (incoming) wave. The
+//  returned message's content is appended to the wave message.
+
+void
+zecho_set_collect_create (zecho_t *self, zecho_create_fn *collect_fn)
+{
+    assert (self);
+    self->collect_create_fn = collect_fn;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Sets a handler which is passed to custom inform functions.
+
+void
+zecho_set_inform_handler (zecho_t *self, void *handler)
+{
+    assert (self);
+    self->inform_handler = handler;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Set a user-defined function to process inform messages from peers; This
+//  function is invoked during the first (outgoing) wave.
+
+void
+zecho_set_inform_process (zecho_t *self, zecho_process_fn *process_fn)
+{
+    assert (self);
+    self->inform_process_fn = process_fn;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Set a user-defined function to create a custom message part for the inform
+//  message; This function is invoked during the first (outgoing) wave. The
+//  returned message's content is appended to the wave message.
+
+void
+zecho_set_inform_create (zecho_t *self, zecho_create_fn *collect_fn)
+{
+    assert (self);
+    self->inform_create_fn = collect_fn;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Set a vector clock handle. Echo messages will be prepended with the
+//  vector if not NULL.
+
+void
+zecho_set_clock (zecho_t *self, zvector_t *clock)
+{
+    assert (self);
+    self->clock = clock;
 }
 
 
@@ -260,6 +409,25 @@ zecho_print (zecho_t *self) {
 
 //  --------------------------------------------------------------------------
 //  Self test of this class
+
+void
+s_test_zecho_process (zecho_t *self, zmsg_t *msg,  void *handler)
+{
+    assert (self);
+    char *str = zmsg_popstr (msg);
+    assert (streq (str, "blub"));
+    zstr_free (&str);
+    zmsg_destroy (&msg);
+}
+
+zmsg_t *
+s_test_zecho_create (zecho_t *self, void *handler)
+{
+    assert (self);
+    zmsg_t *msg = zmsg_new ();
+    zmsg_addstr (msg, "blub");
+    return msg;
+}
 
 void
 zecho_test (bool verbose)
@@ -308,6 +476,12 @@ zecho_test (bool verbose)
     zecho_set_verbose (echo1, verbose);
     zecho_set_verbose (echo2, verbose);
     zecho_set_verbose (echo3, verbose);
+    zecho_set_collect_process (echo1, s_test_zecho_process);
+    zecho_set_collect_process (echo2, s_test_zecho_process);
+    zecho_set_collect_process (echo3, s_test_zecho_process);
+    zecho_set_collect_create (echo1, s_test_zecho_create);
+    zecho_set_collect_create (echo2, s_test_zecho_create);
+    zecho_set_collect_create (echo3, s_test_zecho_create);
 
     //  Join topology
     zyre_join (node1, "GLOBAL");
