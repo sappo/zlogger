@@ -32,16 +32,21 @@ This is the class interface:
     ZLOG_EXPORT void
         zlog_actor (zsock_t *pipe, void *args);
     
-    
-    //  --------------------------------------------------------------------------
     //  Compares the zvector_t's of given logMsg a to logMsg b.
-    //  Returns -1 if a < b, 0 if a = b, 1 if a > b and 2 if a and b parallel
+    //  Returns -1 if a < b, otherwiese 1
     ZLOG_EXPORT int
-        zlog_compare_logMsg (const char *logMsg_a, const char *logMsg_b);
+        zlog_compare_log_msg_vc (const char *logMsg_a, const char *logMsg_b);
     
-    //  Orders log with the given filepath
+    //  Compares the timestamps's of given logMsg a to logMsg b.
+    //  Returns -1 if a < b, otherwiese 1
+    ZLOG_EXPORT int
+        zlog_compare_log_msg_ts (const char *logMsg_a, const char *logMsg_b);
+    
+    //  Reads log of source filepath and orders it with given
+    //  pointer to compare_function into destination filepath.
+    
     ZLOG_EXPORT void
-        zlog_order_log (const char *path_src, const char *path_dst);
+        zlog_order_log (const char *path_src, const char *path_dst, zlistx_comparator_fn *compare_function);
     
     //  Self test of this actor
     ZLOG_EXPORT void
@@ -77,6 +82,9 @@ This is the class self test code:
     
     //  Give time to interconnect and elect
     zclock_sleep (750);
+    
+    //  Give time for log collect to happen
+    zclock_sleep (12000);
     
     zstr_send (zlog, "STOP");
     zstr_send (zlog2, "STOP");

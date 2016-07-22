@@ -24,12 +24,12 @@
 
 **<a href="#toc3-150">API Summary</a>**
 *  <a href="#toc4-155">zlog - zlog actor</a>
-*  <a href="#toc4-239">zecho - Implements the echo algorithms</a>
-*  <a href="#toc4-416">zvector - Implements a dynamic vector clock</a>
+*  <a href="#toc4-260">zecho - Implements the echo algorithms</a>
+*  <a href="#toc4-485">zvector - Implements a dynamic vector clock</a>
 
-**<a href="#toc3-632">Hints to Contributors</a>**
+**<a href="#toc3-698">Hints to Contributors</a>**
 
-**<a href="#toc3-643">This Document</a>**
+**<a href="#toc3-709">This Document</a>**
 
 <A name="toc2-13" title="Overview" />
 ## Overview
@@ -208,6 +208,22 @@ This is the class interface:
     ZLOG_EXPORT void
         zlog_actor (zsock_t *pipe, void *args);
     
+    //  Compares the zvector_t's of given logMsg a to logMsg b.
+    //  Returns -1 if a < b, otherwiese 1
+    ZLOG_EXPORT int
+        zlog_compare_log_msg_vc (const char *logMsg_a, const char *logMsg_b);
+    
+    //  Compares the timestamps's of given logMsg a to logMsg b.
+    //  Returns -1 if a < b, otherwiese 1
+    ZLOG_EXPORT int
+        zlog_compare_log_msg_ts (const char *logMsg_a, const char *logMsg_b);
+    
+    //  Reads log of source filepath and orders it with given
+    //  pointer to compare_function into destination filepath.
+    
+    ZLOG_EXPORT void
+        zlog_order_log (const char *path_src, const char *path_dst, zlistx_comparator_fn *compare_function);
+    
     //  Self test of this actor
     ZLOG_EXPORT void
         zlog_test (bool verbose);
@@ -225,28 +241,31 @@ This is the class self test code:
     char *params3[3] = {"inproc://logger3", "logger3", "GOSSIP SLAVE"};
     zactor_t *zlog3 = zactor_new (zlog_actor, params3);
     
-    char *params4[3] = {"inproc://logger4", "logger4", "GOSSIP SLAVE"};
-    zactor_t *zlog4 = zactor_new (zlog_actor, params4);
+    /*char *params4[3] = {"inproc://logger4", "logger4", "GOSSIP SLAVE"};*/
+    /*zactor_t *zlog4 = zactor_new (zlog_actor, params4);*/
     
     if (verbose) {
         zstr_send (zlog, "VERBOSE");
         zstr_send (zlog2, "VERBOSE");
         zstr_send (zlog3, "VERBOSE");
-        zstr_send (zlog4, "VERBOSE");
+        /*zstr_send (zlog4, "VERBOSE");*/
     }
     
     zstr_send (zlog, "START");
     zstr_send (zlog2, "START");
     zstr_send (zlog3, "START");
-    zstr_send (zlog4, "START");
+    /*zstr_send (zlog4, "START");*/
     
     //  Give time to interconnect and elect
     zclock_sleep (750);
     
+    //  Give time for log collect to happen
+    zclock_sleep (12000);
+    
     zstr_send (zlog, "STOP");
     zstr_send (zlog2, "STOP");
     zstr_send (zlog3, "STOP");
-    zstr_send (zlog4, "STOP");
+    /*zstr_send (zlog4, "STOP");*/
     
     //  Give time to disconnect
     zclock_sleep (250);
@@ -254,13 +273,20 @@ This is the class self test code:
     zactor_destroy (&zlog);
     zactor_destroy (&zlog2);
     zactor_destroy (&zlog3);
-    zactor_destroy (&zlog4);
+    /*zactor_destroy (&zlog4);*/
+    
+    /*zlog_order_log ("/var/log/vc.log", "ordered_vc1.log");*/
 ```
 
-<A name="toc4-239" title="zecho - Implements the echo algorithms" />
+<A name="toc4-260" title="zecho - Implements the echo algorithms" />
 #### zecho - Implements the echo algorithms
 
-zecho - Implements the echo algorithms
+zecho - Implements the echo algorithms which consist of two distinct waves.
+        The first wave is to flood the network and build a spanning tree. It
+        can be used to inform peers thus it's also called inform wave. The
+        second wave is flows from the leaves of the spanning tree back to the
+        initiator. It it used to collect things from peers. Collectables are
+        e.g. ACKs or arbitrary data.
 
 Please add @discuss section in ../src/zecho.c.
 
@@ -268,9 +294,12 @@ This is the class interface:
 
 ```h
     
-    // Handle INFORM or COLLECT  messages
-    typedef zmsg_t * (zecho_handle_fn) (
-        void *self, zmsg_t *msg);
+    //  Process INFORM or COLLECT messages
+    typedef void (zecho_process_fn) (
+        zecho_t *self, zmsg_t *msg,  void *handler);
+    //  Create custom INFORM or COLLECT messages content
+    typedef zmsg_t * (zecho_create_fn) (
+        zecho_t *self, void *handler);
     
     //  Create a new zecho
     ZLOG_EXPORT zecho_t *
@@ -287,6 +316,41 @@ This is the class interface:
     //  Handle a received echo token
     ZLOG_EXPORT int
         zecho_recv (zecho_t *self, zyre_event_t *token);
+    
+    //  Sets a handler which is passed to custom collect functions.
+    ZLOG_EXPORT void
+        zecho_set_collect_handler (zecho_t *self, void *handler);
+    
+    //  Set a user-defined function to process collect messages from peers; This
+    //  function is invoked during the second (incoming) wave.
+    ZLOG_EXPORT void
+        zecho_set_collect_process (zecho_t *self, zecho_process_fn *process_fn);
+    
+    //  Set a user-defined function to create a custom message part for the collect
+    //  message; This function is invoked during the second (incoming) wave. The
+    //  returned message's content is appended to the wave message.
+    ZLOG_EXPORT void
+        zecho_set_collect_create (zecho_t *self, zecho_create_fn *collect_fn);
+    
+    //  Sets a handler which is passed to custom inform functions.
+    ZLOG_EXPORT void
+        zecho_set_inform_handler (zecho_t *self, void *handler);
+    
+    //  Set a user-defined function to process inform messages from peers; This
+    //  function is invoked during the first (outgoing) wave.
+    ZLOG_EXPORT void
+        zecho_set_inform_process (zecho_t *self, zecho_process_fn *process_fn);
+    
+    //  Set a user-defined function to create a custom message part for the inform
+    //  message; This function is invoked during the first (outgoing) wave. The
+    //  returned message's content is appended to the wave message.
+    ZLOG_EXPORT void
+        zecho_set_inform_create (zecho_t *self, zecho_create_fn *collect_fn);
+    
+    //  Set a vector clock handle. Echo messages will be prepended with the
+    //  vector if not NULL.
+    ZLOG_EXPORT void
+        zecho_set_clock (zecho_t *self, zvector_t *clock);
     
     //  Enable/disable verbose logging.
     ZLOG_EXPORT void
@@ -340,6 +404,12 @@ This is the class self test code:
     zecho_set_verbose (echo1, verbose);
     zecho_set_verbose (echo2, verbose);
     zecho_set_verbose (echo3, verbose);
+    zecho_set_collect_process (echo1, s_test_zecho_process);
+    zecho_set_collect_process (echo2, s_test_zecho_process);
+    zecho_set_collect_process (echo3, s_test_zecho_process);
+    zecho_set_collect_create (echo1, s_test_zecho_create);
+    zecho_set_collect_create (echo2, s_test_zecho_create);
+    zecho_set_collect_create (echo3, s_test_zecho_create);
     
     //  Join topology
     zyre_join (node1, "GLOBAL");
@@ -360,7 +430,6 @@ This is the class self test code:
     }
     
     zecho_init (echo1);
-    zclock_sleep (500);
     
     zyre_event_t *event = NULL;
     
@@ -372,7 +441,7 @@ This is the class self test code:
             break;
     } while (1);
     char *type = zmsg_popstr (zyre_event_msg (event));
-    assert (streq (type, "ZE"));
+    assert (streq (type, "ZECHO"));
     zstr_free (&type);
     zecho_recv (echo2, event);
     
@@ -384,7 +453,7 @@ This is the class self test code:
             break;
     } while (1);
     type = zmsg_popstr (zyre_event_msg (event));
-    assert (streq (type, "ZE"));
+    assert (streq (type, "ZECHO"));
     zstr_free (&type);
     zecho_recv (echo3, event);
     
@@ -396,7 +465,7 @@ This is the class self test code:
             break;
     } while (1);
     type = zmsg_popstr (zyre_event_msg (event));
-    assert (streq (type, "ZE"));
+    assert (streq (type, "ZECHO"));
     zstr_free (&type);
     zecho_recv (echo2, event);
     
@@ -408,7 +477,7 @@ This is the class self test code:
             break;
     } while (1);
     type = zmsg_popstr (zyre_event_msg (event));
-    assert (streq (type, "ZE"));
+    assert (streq (type, "ZECHO"));
     zstr_free (&type);
     zecho_recv (echo1, event);
     
@@ -434,7 +503,7 @@ This is the class self test code:
     
 ```
 
-<A name="toc4-416" title="zvector - Implements a dynamic vector clock" />
+<A name="toc4-485" title="zvector - Implements a dynamic vector clock" />
 #### zvector - Implements a dynamic vector clock
 
 zvector - Implements a dynamic vector clock
@@ -460,9 +529,34 @@ This is the class interface:
     ZLOG_EXPORT void
         zvector_recv (zvector_t *self, zmsg_t *msg);
     
+    //  Converts the zvector into string representation
+    ZLOG_EXPORT char *
+        zvector_to_string (zvector_t *self);
+    
+    //  Converts the zvector into string representation with pid_length
+    ZLOG_EXPORT char *
+        zvector_to_string_short (zvector_t *self, uint8_t pid_length);
+    
+    //  Creates a zvector from a given string representation
+    ZLOG_EXPORT zvector_t *
+        zvector_from_string (char *clock_string);
+    
+    ZLOG_EXPORT void
+        zvector_dump_time_space (zvector_t *self);
+    
+    //  Compares zvector self to zvector other.
+    //  Returns -1 at happened before self, 0 at parallel, 1 at happened after
+    //  and 2 when clocks are the same
+    ZLOG_EXPORT int
+        zvector_compare_to (zvector_t *zv_self, zvector_t *zv_other);
+    
     //  Log informational message - low priority. Prepends the current VC.
     ZLOG_EXPORT void
         zvector_info (zvector_t *self, char *format, ...);
+    
+    //  Duplicates the given zvector, returns a freshly allocated dulpicate.
+    ZLOG_EXPORT  zvector_t *
+        zvector_dup (zvector_t *self);
     
     //  Prints the zvector for debug purposes
     ZLOG_EXPORT void
@@ -477,22 +571,17 @@ This is the class interface:
 This is the class self test code:
 
 ```c
-    
-    
-    
-    //  Simple create/destroy test of zvector_t
+    //  TEST: create/destroy zvector_t
     zvector_t *test1_self = zvector_new ("1000");
     assert (test1_self);
     zvector_destroy (&test1_self);
     
-    
-    
-    // Simple test for converting a zvector to stringrepresentation
-    // and from stringrepresentation to a zvector
+    //  TEST: for converting a zvector to stringrepresentation and from
+    //        string represenstation to zvector.
     zvector_t *test2_self = zvector_new ("1000");
     assert (test2_self);
     
-    // inserting some clocks & values
+    //  Inserting some clocks & values
     zvector_event (test2_self);
     unsigned long *test2_inserted_value1 = (unsigned long *) zmalloc (sizeof (unsigned long));
     *test2_inserted_value1 = 7;
@@ -502,7 +591,7 @@ This is the class self test code:
     zhashx_insert (test2_self->clock, "1002", test2_inserted_value2);
     
     char *test2_string = zvector_to_string (test2_self);
-    assert (streq (test2_string, "VC:3;1001,7;1000,1;1002,11;"));
+    assert (streq (test2_string, "VC:3;own:1000;1001,7;1000,1;1002,11;"));
     
     zvector_t *test2_generated = zvector_from_string (test2_string);
     assert ( *(unsigned long *) zhashx_lookup (test2_generated->clock, "1000") == 1 );
@@ -513,9 +602,7 @@ This is the class self test code:
     zvector_destroy (&test2_self);
     zvector_destroy (&test2_generated);
     
-    
-    
-    //  Simple event test
+    //  TEST: events
     zvector_t *test3_self = zvector_new ("1000");
     assert (test3_self);
     
@@ -527,34 +614,25 @@ This is the class self test code:
     zvector_event (test3_self);
     assert ( *(unsigned long *) zhashx_lookup (test3_self->clock, "1000") == 1 );
     assert ( *(unsigned long *) zhashx_lookup (test3_self->clock, "1001") == 5 );
-    
     zvector_destroy (&test3_self);
     
-    
-    
-    //  Simple recv test
+    //  TEST: recv test
     zvector_t *test4_self_clock = zvector_new ("1000");
-    char *test4_sender_clock1_stringRep = zsys_sprintf ("%s", "VC:2;1000,5;1001,10;");
-    char *test4_sender_clock2_stringRep = zsys_sprintf ("%s", "VC:2;1000,20;1002,30;");
-    zvector_t *test4_sender_clock1 = zvector_from_string (test4_sender_clock1_stringRep);
-    zvector_t *test4_sender_clock2 = zvector_from_string (test4_sender_clock2_stringRep);
+    char *test4_sender_clock1_stringRep = zsys_sprintf ("%s", "VC:2;own:1001;1000,5;1001,10;");
+    char *test4_sender_clock2_stringRep = zsys_sprintf ("%s", "VC:2;own:1002;1000,20;1002,30;");
     assert (test4_self_clock);
-    assert (test4_sender_clock1);
-    assert (test4_sender_clock2);
     
-    // receive sender clock 1 and add key-value pairs to own clock
+    //  Receive sender clock 1 and add key-value pairs to own clock
     zmsg_t *test4_msg1 = zmsg_new ();
-    zframe_t *test4_packed_clock1 = zhashx_pack_own (test4_sender_clock1->clock, s_serialize_clock_value);
-    zmsg_prepend (test4_msg1, &test4_packed_clock1);
+    zmsg_pushstr (test4_msg1, test4_sender_clock1_stringRep);
     zvector_recv (test4_self_clock, test4_msg1);
     zmsg_destroy (&test4_msg1);
     assert ( *(unsigned long *) zhashx_lookup (test4_self_clock->clock, "1000") == 5 );
     assert ( *(unsigned long *) zhashx_lookup (test4_self_clock->clock, "1001") == 10 );
     
-    // receive sender clock 2 and add key-value pairs to own clock
+    //  Receive sender clock 2 and add key-value pairs to own clock
     test4_msg1 = zmsg_new ();
-    zframe_t *test4_packed_clock2 = zhashx_pack_own (test4_sender_clock2->clock, s_serialize_clock_value);
-    zmsg_prepend (test4_msg1, &test4_packed_clock2);
+    zmsg_pushstr (test4_msg1, test4_sender_clock2_stringRep);
     zvector_recv (test4_self_clock, test4_msg1);
     zmsg_destroy (&test4_msg1);
     assert ( *(unsigned long *) zhashx_lookup (test4_self_clock->clock, "1000") == 20 );
@@ -564,12 +642,8 @@ This is the class self test code:
     zstr_free (&test4_sender_clock1_stringRep);
     zstr_free (&test4_sender_clock2_stringRep);
     zvector_destroy (&test4_self_clock);
-    zvector_destroy (&test4_sender_clock1);
-    zvector_destroy (&test4_sender_clock2);
     
-    
-    
-    // Simple send_prepare test
+    // TEST: send prepare
     zvector_t *test5_self = zvector_new ("1000");
     assert (test5_self);
     zvector_event (test5_self);
@@ -577,31 +651,28 @@ This is the class self test code:
     zmsg_pushstr (test5_zmsg, "test");
     
     zvector_send_prepare (test5_self, test5_zmsg);
-    zframe_t *test5_popped_frame = zmsg_pop (test5_zmsg);
-    zhashx_t *test5_unpacked_clock = zhashx_unpack_own (test5_popped_frame, s_deserialize_clock_value);
+    char *test5_clock_string = zmsg_popstr (test5_zmsg);
+    zvector_t *test5_unpacked_clock = zvector_from_string (test5_clock_string);
     char *test5_unpacked_string = zmsg_popstr (test5_zmsg);
     assert (streq (test5_unpacked_string, "test"));
-    assert ( *(unsigned long *) zhashx_lookup (test5_unpacked_clock, "1000") == 2 );
+    assert ( *(unsigned long *) zhashx_lookup (test5_unpacked_clock->clock, "1000") == 2 );
     
-    zframe_destroy (&test5_popped_frame);
+    zstr_free (&test5_clock_string);
     zstr_free (&test5_unpacked_string);
-    zhashx_destroy (&test5_unpacked_clock);
     zmsg_destroy (&test5_zmsg);
     zvector_destroy (&test5_self);
+    zvector_destroy (&test5_unpacked_clock);
     
-    
-    
-    // Simple compare test
-    char *test6_self_stringrep = zsys_sprintf ("%s", "VC:3;1000,10;2000,10;3000,10;");
-    char *test6_before_stringrep1 = zsys_sprintf ("%s", "VC:2;1100,10;3000,9;");
-    char *test6_before_stringrep2 = zsys_sprintf ("%s", "VC:3;1100,10;2100,10;3000,9;");
-    char *test6_before_stringrep3 = zsys_sprintf ("%s", "VC:4;1100,10;2100,10;3000,9;4000,9");
-    char *test6_parallel_stringrep1 = zsys_sprintf ("%s", "VC:2;1500,10;2500,10;");
-    char *test6_parallel_stringrep2 = zsys_sprintf ("%s", "VC:3;1500,10;2500,10;3500,10;");
-    char *test6_parallel_stringrep3 = zsys_sprintf ("%s", "VC:4;500,20;1500,10;2500,10;3500,10;");
-    char *test6_after_stringrep1 = zsys_sprintf ("%s", "VC:2;1000,11;2200,10;");
-    char *test6_after_stringrep2 = zsys_sprintf ("%s", "VC:3;1200,10;2200,10;3000,11;");
-    char *test6_after_stringrep3 = zsys_sprintf ("%s", "VC:4;1200,10;2200,10;3000,11;2000,11;");
+    // TEST: compare
+    char *test6_self_stringrep = zsys_sprintf ("%s", "VC:3;own:p2;p1,2;p2,2;p3,2;");
+    char *test6_before_stringrep1 = zsys_sprintf ("%s", "VC:2;own:p3;p1,1;p3,2;");
+    char *test6_before_stringrep2 = zsys_sprintf ("%s", "VC:2;own:p2;p1,2;p2,1;");
+    char *test6_before_stringrep3 = zsys_sprintf ("%s", "VC:1;own:p1;p1,1;");
+    char *test6_parallel_stringrep1 = zsys_sprintf ("%s", "VC:1;own:p1;p1,3;");
+    char *test6_parallel_stringrep2 = zsys_sprintf ("%s", "VC:2;own:p3;p1,1;p3,3;");
+    char *test6_parallel_stringrep3 = zsys_sprintf ("%s", "VC:2;own:p1;p1,4;p3,3;");
+    char *test6_after_stringrep1 = zsys_sprintf ("%s", "VC:3;own:p2;p1,2;p2,3;p3,2;");
+    char *test6_after_stringrep2 = zsys_sprintf ("%s", "VC:3;own:p3;p1,2;p2,3;p3,4;");
     zvector_t *test6_self = zvector_from_string (test6_self_stringrep);
     zvector_t *test6_before1 = zvector_from_string (test6_before_stringrep1);
     zvector_t *test6_before2 = zvector_from_string (test6_before_stringrep2);
@@ -611,18 +682,15 @@ This is the class self test code:
     zvector_t *test6_parallel3 = zvector_from_string (test6_parallel_stringrep3);
     zvector_t *test6_after1 = zvector_from_string (test6_after_stringrep1);
     zvector_t *test6_after2 = zvector_from_string (test6_after_stringrep2);
-    zvector_t *test6_after3 = zvector_from_string (test6_after_stringrep3);
     
-    assert ( zvector_compare_to (test6_self, test6_before1) == -1);
-    assert ( zvector_compare_to (test6_self, test6_before2) == -1);
-    assert ( zvector_compare_to (test6_self, test6_before3) == -1);
-    assert ( zvector_compare_to (test6_self, test6_parallel1) == 0);
-    assert ( zvector_compare_to (test6_self, test6_parallel2) == 0);
-    assert ( zvector_compare_to (test6_self, test6_parallel3) == 0);
-    assert ( zvector_compare_to (test6_self, test6_after1) == 1);
-    assert ( zvector_compare_to (test6_self, test6_after2) == 1);
-    assert ( zvector_compare_to (test6_self, test6_after3) == 1);
-    assert ( zvector_compare_to (test6_self, test6_self) == 2);
+    assert (zvector_compare_to (test6_self, test6_before1) == 1);
+    assert (zvector_compare_to (test6_self, test6_before2) == 1);
+    assert (zvector_compare_to (test6_self, test6_before3) == 1);
+    assert (zvector_compare_to (test6_self, test6_parallel1) == 0);
+    assert (zvector_compare_to (test6_self, test6_parallel2) == 0);
+    assert (zvector_compare_to (test6_self, test6_parallel3) == 0);
+    assert (zvector_compare_to (test6_self, test6_after1) == -1);
+    assert (zvector_compare_to (test6_self, test6_after2) == -1);
     
     zstr_free (&test6_self_stringrep);
     zstr_free (&test6_before_stringrep1);
@@ -633,7 +701,7 @@ This is the class self test code:
     zstr_free (&test6_parallel_stringrep3);
     zstr_free (&test6_after_stringrep1);
     zstr_free (&test6_after_stringrep2);
-    zstr_free (&test6_after_stringrep3);
+    
     zvector_destroy (&test6_self);
     zvector_destroy (&test6_before1);
     zvector_destroy (&test6_before2);
@@ -643,14 +711,12 @@ This is the class self test code:
     zvector_destroy (&test6_parallel3);
     zvector_destroy (&test6_after1);
     zvector_destroy (&test6_after2);
-    zvector_destroy (&test6_after3);
-    
     
     
 ```
 
 
-<A name="toc3-632" title="Hints to Contributors" />
+<A name="toc3-698" title="Hints to Contributors" />
 ### Hints to Contributors
 
 Zlogger is a nice, neat library, and you may not immediately appreciate why. Read the CLASS style guide please, and write your code to make it indistinguishable from the rest of the code in the library. That is the only real criteria for good style: it's invisible.
@@ -661,7 +727,7 @@ Do read your code after you write it and ask, "Can I make this simpler?" We do u
 
 Before opening a pull request read our [contribution guidelines](https://github.com/zeromq/zlogger/blob/master/CONTRIBUTING.md). Thanks!
 
-<A name="toc3-643" title="This Document" />
+<A name="toc3-709" title="This Document" />
 ### This Document
 
 _This documentation was generated from zlogger/README.txt using [Gitdown](https://github.com/zeromq/gitdown)_
