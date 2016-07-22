@@ -27,8 +27,18 @@ struct _zlog_t {
     bool terminated;            //  Did caller ask us to quit?
     bool verbose;               //  Verbose logging enabled?
     //  Actor properties
+
+    //  Leader properties
+    int leader_timer;           //  ID of leader's collect timer
+    zlistx_t *ordered_log;      //  List of ordered log entries
+    //  Peer properties
+    zlistx_t *collect_log;      //  Collect log messages from peers to forward to father
+    int linesRead;              //  How many lines have been read from logfile
+    //  Communication properties
     zelection_t *election;      //  Election mechanism
+    zecho_t *collector;         //  Log collector
     zvector_t *clock;           //  Vector clock for this self
+
     zyre_t *node;               //  Zyre handle
 };
 
@@ -64,6 +74,7 @@ zlog_new (zsock_t *pipe, void *args)
     self->terminated = false;
     self->loop = zloop_new ();
     zloop_reader (self->loop, self->pipe, s_zlog_recv_api, self);
+    zsys_set_logsystem (true);
 
     //  Initialize properties
     char *name = params[1];
@@ -73,6 +84,16 @@ zlog_new (zsock_t *pipe, void *args)
     self->clock = zvector_new (zyre_uuid (self->node));
     self->election = zelection_new (self->node);
     zelection_set_clock (self->election, self->clock);
+
+    //  Initialize leader properties
+    self->ordered_log = zlistx_new ();
+    zlistx_set_destructor (self->ordered_log, (zlistx_destructor_fn *) zstr_free);
+    zlistx_set_comparator (self->ordered_log, (zlistx_comparator_fn *) zlog_compare_log_msg_vc);
+
+    //  Initialize peer properties
+    self->collect_log = zlistx_new ();
+    zlistx_set_destructor (self->collect_log, (zlistx_destructor_fn *) zstr_free);
+    self->linesRead = 0;
 
     //  Set node endpoint
     char *endpoint = params[0];
@@ -104,7 +125,10 @@ zlog_destroy (zlog_t **self_p)
         /*zvector_dump_time_space (self->clock);*/
         zvector_destroy (&self->clock);
         zelection_destroy (&self->election);
+        zecho_destroy (&self->collector);
         zyre_destroy (&self->node);
+        zlistx_destroy (&self->ordered_log);
+        zlistx_destroy (&self->collect_log);
 
         //  Free object itself
         zloop_destroy (&self->loop);
@@ -170,7 +194,6 @@ s_get_clock_from_log_msg (char *logMsg)
   return ret;
 }
 
-
 //  Extracts the timestamp from a given logMsg
 
 static unsigned long long *
@@ -188,6 +211,7 @@ s_get_timestamp_from_logMsg (char *logMsg)
 
   return ts_val;
 }
+
 
 
 //  Here we handle incoming message from the node
@@ -230,6 +254,136 @@ s_zlog_recv_api (zloop_t *loop, zsock_t *reader, void *arg)
 }
 
 
+static void
+s_zlog_process_collect_log (zecho_t *echo, zmsg_t *msg, zlog_t *self)
+{
+    assert (self);
+
+    if (zelection_won (self->election)) {
+        printf ("LEADER\n");
+        //  Read log message and order log
+        zvector_info (self->clock, "Order received logs %s\n", zyre_uuid (self->node));
+        char *logmsg = zmsg_popstr (msg);
+        while (logmsg) {
+            zlistx_insert (self->ordered_log, logmsg, true);
+            logmsg = zmsg_popstr (msg);
+        }
+
+        FILE *logfile = fopen("./ordered_log", "w+");
+        logmsg = (char *) zlistx_first (self->ordered_log);
+        while (logmsg) {
+            fprintf (logfile, "%s\n", logmsg);
+            //  Next log message
+            logmsg = (char *) zlistx_next (self->ordered_log);
+        }
+        fclose (logfile);
+    }
+    else {
+        printf ("SLAVE\n");
+        //  Save collect log messages from peers
+        char *logmsg = zmsg_popstr (msg);
+        while (logmsg) {
+            zlistx_insert (self->collect_log, logmsg, false);
+            logmsg = zmsg_popstr (msg);
+        }
+    }
+    zmsg_destroy (&msg);
+}
+
+
+static zlistx_t *
+s_zlog_read_log (zlog_t *self)
+{
+    assert (self);
+    zlistx_t *messages = zlistx_new ();
+    zlistx_set_duplicator (messages, (zlistx_duplicator_fn *) strdup);
+
+    //  Read own log file
+    char *filename = zsys_sprintf ("vc_%s.log", zyre_uuid (self->node));
+    zfile_t *logfile = zfile_new ("/tmp", filename);
+    //  Read all log entries
+    if (!zfile_is_readable (logfile))
+        goto cleanup;           //  No log entries yet
+
+    printf ("Read %s\n", zfile_filename (logfile, NULL));
+    zfile_input (logfile);
+    int cnt = 1;
+    const char *logmsg = zfile_readln (logfile);
+    while (logmsg) {
+        if (cnt > self->linesRead) {
+            zlistx_insert (messages, (char *) logmsg, false);
+            self->linesRead++;
+        }
+        logmsg = zfile_readln (logfile);
+        cnt++;
+    }
+
+cleanup:
+    zstr_free (&filename);
+    zfile_destroy (&logfile);
+    zvector_info (self->clock, "Collect logs %s", zyre_uuid (self->node));
+    return messages;
+}
+
+
+static zmsg_t *
+s_zlog_send_collect_log (zecho_t *echo, zlog_t *self)
+{
+    assert (self);
+    zmsg_t *collect_msg = zmsg_new ();
+
+    //  Append collect log messages from peers
+    const char *logmsg = (const char *) zlistx_first (self->collect_log);
+    while (logmsg) {
+        zmsg_addstr (collect_msg, logmsg);
+        logmsg = (const char *) zlistx_next (self->collect_log);
+    }
+    zlistx_purge (self->collect_log);
+
+    zlistx_t *messages = s_zlog_read_log (self);
+    logmsg = (const char *) zlistx_first (messages);
+    while (logmsg) {
+        zmsg_addstr (collect_msg, logmsg);
+        logmsg = (const char *) zlistx_next (messages);
+    }
+    zlistx_set_destructor (messages, (zlistx_destructor_fn *) zstr_free);
+    zlistx_destroy (&messages);
+
+    return collect_msg;
+}
+
+
+static int
+s_zlog_collect_timer (zloop_t *loop, int timer_id, void *arg)
+{
+    assert (arg);
+    zlog_t *self = (zlog_t *) arg;
+
+    if (self->collector)
+        zecho_destroy (&self->collector);
+
+    self->collector = zecho_new (self->node);
+    zecho_set_clock (self->collector, self->clock);
+    zecho_set_collect_handler (self->collector, self);
+    zecho_set_collect_process (self->collector, (zecho_process_fn *) s_zlog_process_collect_log);
+    zecho_init (self->collector);
+    zvector_info (self->clock, "Start log collection %s\n", zyre_uuid (self->node));
+
+    //  Read and insert leader log
+    zlistx_t *messages = s_zlog_read_log (self);
+    printf ("Lines read %d %lu\n", self->linesRead, zlistx_size (messages));
+    char *logmsg = (char *) zlistx_first (messages);
+    while (logmsg) {
+        zlistx_insert (self->ordered_log, logmsg, true);
+        logmsg = (char *) zlistx_next (messages);
+    }
+    printf ("Lines read %d %lu\n", self->linesRead, zlistx_size (self->ordered_log));
+    zlistx_destroy (&messages);
+
+    return 0;
+}
+
+
 //  Here we handle incoming message from zyre
 
 static int
@@ -255,9 +409,24 @@ s_zlog_recv_zyre (zloop_t *loop, zsock_t *reader, void *arg)
                 if (self->verbose)
                     zelection_print (self->election);
 
-                //  TODO: leader action
+                //  Leader action
+                if (zelection_won (self->election))
+                    self->leader_timer = zloop_timer (loop, 5000, 0, s_zlog_collect_timer, self);
             }
             //  rc == -1, will be ignored! We just let the election starve.
+        }
+        else
+        if (streq (command, "ZECHO")) {
+            if (!self->collector) {
+                self->collector = zecho_new (self->node);
+                zecho_set_clock (self->collector, self->clock);
+                zecho_set_collect_handler (self->collector, self);
+                zecho_set_collect_process (self->collector, (zecho_process_fn *) s_zlog_process_collect_log);
+                zecho_set_collect_create (self->collector, (zecho_create_fn *) s_zlog_send_collect_log);
+            }
+            if (zecho_recv (self->collector, event) == 1)
+                zecho_destroy (&self->collector);
+
         }
         zstr_free (&command);
     }
@@ -280,9 +449,7 @@ zlog_actor (zsock_t *pipe, void *args)
 
     //  Signal actor successfully initiated
     zsock_signal (self->pipe, 0);
-
-    zloop_start (self->loop);
-
+    zloop_start (self->loop);   //  Give control to event loop!
     zlog_destroy (&self);
 }
 
@@ -386,6 +553,33 @@ zlog_test (bool verbose)
 
     if (verbose) {
         zstr_send (zlog, "VERBOSE");
+
+
+//  --------------------------------------------------------------------------
+//  Self test of this actor.
+
+void
+zlog_test (bool verbose)
+{
+    printf (" * zlog: ");
+    if (verbose)
+        printf ("\n");
+
+    //  @selftest
+    char *params1[3] = {"inproc://logger1", "logger1", "GOSSIP MASTER"};
+    zactor_t *zlog = zactor_new (zlog_actor, params1);
+
+    char *params2[3] = {"inproc://logger2", "logger2", "GOSSIP SLAVE"};
+    zactor_t *zlog2 = zactor_new (zlog_actor, params2);
+
+    char *params3[3] = {"inproc://logger3", "logger3", "GOSSIP SLAVE"};
+    zactor_t *zlog3 = zactor_new (zlog_actor, params3);
+
+    /*char *params4[3] = {"inproc://logger4", "logger4", "GOSSIP SLAVE"};*/
+    /*zactor_t *zlog4 = zactor_new (zlog_actor, params4);*/
+
+    if (verbose) {
+        zstr_send (zlog, "VERBOSE");
         zstr_send (zlog2, "VERBOSE");
         zstr_send (zlog3, "VERBOSE");
         /*zstr_send (zlog4, "VERBOSE");*/
@@ -398,6 +592,9 @@ zlog_test (bool verbose)
 
     //  Give time to interconnect and elect
     zclock_sleep (750);
+
+    //  Give time for log collect to happen
+    zclock_sleep (12000);
 
     zstr_send (zlog, "STOP");
     zstr_send (zlog2, "STOP");
@@ -412,7 +609,7 @@ zlog_test (bool verbose)
     zactor_destroy (&zlog3);
     /*zactor_destroy (&zlog4);*/
 
-    zlog_order_log ("/var/log/vc.log", "ordered_vc1.log", (zlistx_comparator_fn *) zlog_compare_log_msg_vc);
+    /*zlog_order_log ("/var/log/vc.log", "ordered_vc1.log");*/
     //  @end
 
     printf ("OK\n");
