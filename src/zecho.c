@@ -282,6 +282,7 @@ zecho_recv (zecho_t *self, zyre_event_t *token)
             zsys_info ("Received from peer\n");
 
     }
+    zyre_event_destroy (&token);
     zstr_free (&wave_direction);
     return 0;
 }
