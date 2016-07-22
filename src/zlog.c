@@ -553,33 +553,6 @@ zlog_test (bool verbose)
 
     if (verbose) {
         zstr_send (zlog, "VERBOSE");
-
-
-//  --------------------------------------------------------------------------
-//  Self test of this actor.
-
-void
-zlog_test (bool verbose)
-{
-    printf (" * zlog: ");
-    if (verbose)
-        printf ("\n");
-
-    //  @selftest
-    char *params1[3] = {"inproc://logger1", "logger1", "GOSSIP MASTER"};
-    zactor_t *zlog = zactor_new (zlog_actor, params1);
-
-    char *params2[3] = {"inproc://logger2", "logger2", "GOSSIP SLAVE"};
-    zactor_t *zlog2 = zactor_new (zlog_actor, params2);
-
-    char *params3[3] = {"inproc://logger3", "logger3", "GOSSIP SLAVE"};
-    zactor_t *zlog3 = zactor_new (zlog_actor, params3);
-
-    /*char *params4[3] = {"inproc://logger4", "logger4", "GOSSIP SLAVE"};*/
-    /*zactor_t *zlog4 = zactor_new (zlog_actor, params4);*/
-
-    if (verbose) {
-        zstr_send (zlog, "VERBOSE");
         zstr_send (zlog2, "VERBOSE");
         zstr_send (zlog3, "VERBOSE");
         /*zstr_send (zlog4, "VERBOSE");*/
