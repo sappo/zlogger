@@ -77,9 +77,7 @@ zlog_new (zsock_t *pipe, void *args)
     zsys_set_logsystem (true);
 
     //  Initialize properties
-    char *name = params[1];
-    assert (name);
-    self->node = zyre_new (name);
+    self->node = zyre_new (NULL);
     zloop_reader (self->loop, zyre_socket (self->node), s_zlog_recv_zyre, self);
     self->clock = zvector_new (zyre_uuid (self->node));
     self->election = zelection_new (self->node);
@@ -95,17 +93,19 @@ zlog_new (zsock_t *pipe, void *args)
     zlistx_set_destructor (self->collect_log, (zlistx_destructor_fn *) zstr_free);
     self->linesRead = 0;
 
-    //  Set node endpoint
-    char *endpoint = params[0];
-    assert (endpoint);
-    zyre_set_endpoint (self->node, "%s", endpoint);
+    //  Enable Gossip discovery
+    if (params) {
+        //  Set node endpoint
+        char *endpoint = params[0];
+        zyre_set_endpoint (self->node, "%s", endpoint);
 
-    //  Set gossip discovery algorithm
-    if (streq (params[2], "GOSSIP MASTER"))
-        zyre_gossip_bind (self->node, "inproc://gossip-hub");
-    else
-    if (streq (params[2], "GOSSIP SLAVE"))
-        zyre_gossip_connect (self->node, "inproc://gossip-hub");
+        //  Set gossip discovery algorithm
+        if (streq (params[1], "GOSSIP MASTER"))
+            zyre_gossip_bind (self->node, "inproc://gossip-hub");
+        else
+        if (streq (params[1], "GOSSIP SLAVE"))
+            zyre_gossip_connect (self->node, "inproc://gossip-hub");
+    }
 
     return self;
 }
@@ -234,6 +234,23 @@ s_zlog_recv_api (zloop_t *loop, zsock_t *reader, void *arg)
     if (streq (command, "STOP"))
         zlog_stop (self);
     else
+    if (streq (command, "SEND RANDOM")) {
+        char *content = zmsg_popstr (request);
+        zlist_t *peers = zyre_peers (self->node);
+        int rand = randof (zlist_size (peers));
+        int index = 0;
+        const char *peer = (const char *) zlist_first (peers);
+        for (index = 0; index <= rand; index++) {
+            if (rand == index)
+                zyre_whispers (self->node, peer, "%s", content);
+
+            peer =  (const char *) zlist_next (peers);
+        }
+        zvector_info (self->clock, "%s", content);
+
+        zlist_destroy (&peers);
+        zstr_free (&content);
+    }
     if (streq (command, "VERBOSE")) {
         self->verbose = true;
         zelection_set_verbose (self->election, true);
@@ -260,7 +277,7 @@ s_zlog_process_collect_log (zecho_t *echo, zmsg_t *msg, zlog_t *self)
     assert (self);
 
     if (zelection_won (self->election)) {
-        printf ("LEADER\n");
+        /*printf ("LEADER\n");*/
         //  Read log message and order log
         zvector_info (self->clock, "Order received logs %s\n", zyre_uuid (self->node));
         char *logmsg = zmsg_popstr (msg);
@@ -279,7 +296,7 @@ s_zlog_process_collect_log (zecho_t *echo, zmsg_t *msg, zlog_t *self)
         fclose (logfile);
     }
     else {
-        printf ("SLAVE\n");
+        /*printf ("SLAVE\n");*/
         //  Save collect log messages from peers
         char *logmsg = zmsg_popstr (msg);
         while (logmsg) {
@@ -305,7 +322,7 @@ s_zlog_read_log (zlog_t *self)
     if (!zfile_is_readable (logfile))
         goto cleanup;           //  No log entries yet
 
-    printf ("Read %s\n", zfile_filename (logfile, NULL));
+    /*printf ("Read %s\n", zfile_filename (logfile, NULL));*/
     zfile_input (logfile);
     int cnt = 1;
     const char *logmsg = zfile_readln (logfile);
@@ -371,13 +388,13 @@ s_zlog_collect_timer (zloop_t *loop, int timer_id, void *arg)
 
     //  Read and insert leader log
     zlistx_t *messages = s_zlog_read_log (self);
-    printf ("Lines read %d %d\n", self->linesRead, (int) zlistx_size (messages));
+    /*printf ("Lines read %d %d\n", self->linesRead, (int) zlistx_size (messages));*/
     char *logmsg = (char *) zlistx_first (messages);
     while (logmsg) {
         zlistx_insert (self->ordered_log, logmsg, true);
         logmsg = (char *) zlistx_next (messages);
     }
-    printf ("Lines read %d %d\n", self->linesRead, (int) zlistx_size (self->ordered_log));
+    /*printf ("Lines read %d %d\n", self->linesRead, (int) zlistx_size (self->ordered_log));*/
     zlistx_destroy (&messages);
 
     return 0;
@@ -539,13 +556,13 @@ zlog_test (bool verbose)
         printf ("\n");
 
     //  @selftest
-    char *params1[3] = {"inproc://logger1", "logger1", "GOSSIP MASTER"};
+    char *params1[2] = {"inproc://logger1", "GOSSIP MASTER"};
     zactor_t *zlog = zactor_new (zlog_actor, params1);
 
-    char *params2[3] = {"inproc://logger2", "logger2", "GOSSIP SLAVE"};
+    char *params2[2] = {"inproc://logger2", "GOSSIP SLAVE"};
     zactor_t *zlog2 = zactor_new (zlog_actor, params2);
 
-    char *params3[3] = {"inproc://logger3", "logger3", "GOSSIP SLAVE"};
+    char *params3[2] = {"inproc://logger3", "GOSSIP SLAVE"};
     zactor_t *zlog3 = zactor_new (zlog_actor, params3);
 
     /*char *params4[3] = {"inproc://logger4", "logger4", "GOSSIP SLAVE"};*/

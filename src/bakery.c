@@ -1,12 +1,12 @@
 /*  =========================================================================
     bakery - Bakery with zlogger support
 
-    Copyright (c) the Contributors as noted in the AUTHORS file.       
-    This file is part of zlogger.                                      
-                                                                       
+    Copyright (c) the Contributors as noted in the AUTHORS file.
+    This file is part of zlogger.
+
     This Source Code Form is subject to the terms of the Mozilla Public
     License, v. 2.0. If a copy of the MPL was not distributed with this
-    file, You can obtain one at http://mozilla.org/MPL/2.0/.           
+    file, You can obtain one at http://mozilla.org/MPL/2.0/.
     =========================================================================
 */
 
@@ -43,5 +43,22 @@ int main (int argc, char *argv [])
     //  Insert main code here
     if (verbose)
         zsys_info ("bakery - Bakery with zlogger support");
+
+    zactor_t *zlog = zactor_new (zlog_actor, NULL);
+
+    zstr_send (zlog, "START");
+    //  Give time to interconnect and elect
+    zclock_sleep (750);
+
+    // TODO: Bakery stuff!
+    zstr_sendm (zlog, "SEND RANDOM");
+    zstr_send (zlog, "STIRRED");
+
+    zclock_sleep (5000);
+
+    zactor_destroy (&zlog);
+    //  Give time to disconnect
+    zclock_sleep (250);
+
     return 0;
 }
