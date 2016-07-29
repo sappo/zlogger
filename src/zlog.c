@@ -65,7 +65,6 @@ static zlog_t *
 zlog_new (zsock_t *pipe, void *args)
 {
     char **params = (char **) args;
-    assert (params);
 
     zlog_t *self = (zlog_t *) zmalloc (sizeof (zlog_t));
     assert (self);
