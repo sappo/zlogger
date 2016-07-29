@@ -50,11 +50,35 @@ int main (int argc, char *argv [])
     //  Give time to interconnect and elect
     zclock_sleep (750);
 
+    int64_t time = zclock_mono ();
     // TODO: Bakery stuff!
     zstr_sendm (zlog, "SEND RANDOM");
     zstr_send (zlog, "STIRRED");
+    while (zclock_mono () - time < 7000) {
+        zmsg_t *msg = zmsg_recv_nowait (zlog);
+        if (msg) {
+            char *content = zmsg_popstr (msg);
+            char *owner = zmsg_popstr (msg);
+            if (strncmp (content, "STIRRED", 6) == 0) {
+                zstr_sendm (zlog, "SEND RANDOM");
+                zstr_sendm (zlog, "BAKED");
+                zstr_send (zlog, owner);
 
-    zclock_sleep (5000);
+            }
+            else
+            if (strncmp (content, "BAKED", 5) == 0) {
+                zstr_sendm (zlog, "SEND RANDOM");
+                zstr_sendm (zlog, "EATEN");
+                zstr_send (zlog, owner);
+            }
+
+            zstr_free (&content);
+            zstr_free (&owner);
+            zmsg_destroy (&msg);
+        }
+        /*zclock_sleep (100);*/
+    }
+
 
     zactor_destroy (&zlog);
     //  Give time to disconnect

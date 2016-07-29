@@ -111,7 +111,7 @@ s_neighbors (zelection_t *self, bool with_father)
     const char *group = (const char *) zlist_first (groups);
     while (group) {
         zlist_t *neighbors = zyre_peers_by_group (self->node, group);
-        while (zlist_size (neighbors) > 0) {
+        while (neighbors && zlist_size (neighbors) > 0) {
             if (with_father)
                 zlist_append (all_neighbors, zlist_pop (neighbors));
             else {
@@ -140,6 +140,9 @@ s_send_to (zelection_t *self, zmsg_t *msg, zlist_t *peers)
     assert (self);
     assert (msg);
     assert (peers);
+
+    if (zlist_size (peers) == 0)
+        return;     //  No peers found yet!
 
     const char *peer = (const char *) zlist_first (peers);
     while (peer) {

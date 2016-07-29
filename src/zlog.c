@@ -235,21 +235,38 @@ s_zlog_recv_api (zloop_t *loop, zsock_t *reader, void *arg)
     else
     if (streq (command, "SEND RANDOM")) {
         char *content = zmsg_popstr (request);
-        zlist_t *peers = zyre_peers (self->node);
-        int rand = randof (zlist_size (peers));
-        int index = 0;
-        const char *peer = (const char *) zlist_first (peers);
-        for (index = 0; index <= rand; index++) {
-            if (rand == index)
-                zyre_whispers (self->node, peer, "%s", content);
+        char *owner = zmsg_popstr (request);
 
-            peer =  (const char *) zlist_next (peers);
+        zlist_t *peers = zyre_peers (self->node);
+        if (!peers || zlist_size (peers) == 0)
+            zvector_info (self->clock, "%s", "No friends!");
+        else {
+            zmsg_t *msg = zmsg_new ();
+            zvector_send_prepare (self->clock, msg);
+            zmsg_addstr (msg, "BAKERY");
+            zmsg_addstr (msg, content);
+            if (!owner)
+                owner = strdup (zyre_uuid (self->node));
+
+            zmsg_addstr (msg, owner);
+
+            int rand = randof (zlist_size (peers));
+            int index = 0;
+            const char *peer = (const char *) zlist_first (peers);
+            for (index = 0; index <= rand; index++) {
+                if (rand == index)
+                    zyre_whisper (self->node, peer, &msg);
+
+                peer =  (const char *) zlist_next (peers);
+            }
+            zvector_info (self->clock, "S: %s - %.5s", content, owner);
         }
-        zvector_info (self->clock, "%s", content);
 
         zlist_destroy (&peers);
         zstr_free (&content);
+        zstr_free (&owner);
     }
+    else
     if (streq (command, "VERBOSE")) {
         self->verbose = true;
         zelection_set_verbose (self->election, true);
@@ -278,7 +295,9 @@ s_zlog_process_collect_log (zecho_t *echo, zmsg_t *msg, zlog_t *self)
     if (zelection_won (self->election)) {
         /*printf ("LEADER\n");*/
         //  Read log message and order log
-        zvector_info (self->clock, "Order received logs %s\n", zyre_uuid (self->node));
+        if (self->verbose)
+            zvector_info (self->clock, "Order received logs %s\n", zyre_uuid (self->node));
+
         char *logmsg = zmsg_popstr (msg);
         while (logmsg) {
             zlistx_insert (self->ordered_log, logmsg, true);
@@ -337,7 +356,9 @@ s_zlog_read_log (zlog_t *self)
 cleanup:
     zstr_free (&filename);
     zfile_destroy (&logfile);
-    zvector_info (self->clock, "Collect logs %s", zyre_uuid (self->node));
+    if (self->verbose)
+        zvector_info (self->clock, "Collect logs %s", zyre_uuid (self->node));
+
     return messages;
 }
 
@@ -383,7 +404,8 @@ s_zlog_collect_timer (zloop_t *loop, int timer_id, void *arg)
     zecho_set_collect_handler (self->collector, self);
     zecho_set_collect_process (self->collector, (zecho_process_fn *) s_zlog_process_collect_log);
     zecho_init (self->collector);
-    zvector_info (self->clock, "Start log collection %s\n", zyre_uuid (self->node));
+    if (self->verbose)
+        zvector_info (self->clock, "Start log collection %s\n", zyre_uuid (self->node));
 
     //  Read and insert leader log
     zlistx_t *messages = s_zlog_read_log (self);
@@ -443,6 +465,18 @@ s_zlog_recv_zyre (zloop_t *loop, zsock_t *reader, void *arg)
             if (zecho_recv (self->collector, event) == 1)
                 zecho_destroy (&self->collector);
 
+        }
+        else
+        if (streq (command, "BAKERY")) {
+            char *content = zmsg_popstr (zyre_event_msg (event));
+            char *owner = zmsg_popstr (zyre_event_msg (event));
+            zvector_info (self->clock, "R: %s - %.5s", content, owner);
+
+            zstr_sendm (self->pipe, content);
+            zstr_send (self->pipe, owner);
+
+            zstr_free (&content);
+            zstr_free (&owner);
         }
         zstr_free (&command);
     }
