@@ -193,6 +193,22 @@ install(
 # executables
 ########################################################################
 add_executable(
+    bakery
+    "${SOURCE_DIR}/src/bakery.c"
+)
+target_link_libraries(
+    bakery
+    zlog
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${ZYRE_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+)
+set_target_properties(
+    bakery
+    PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SOURCE_DIR}/src"
+)
+add_executable(
     zlog_selftest
     "${SOURCE_DIR}/src/zlog_selftest.c"
 )
@@ -264,6 +280,7 @@ set(cmake_generated ${CMAKE_BINARY_DIR}/CMakeCache.txt
                     ${CMAKE_BINARY_DIR}/src/libzlog.pc
                     ${CMAKE_BINARY_DIR}/src/libzlog.so
                     ${CMAKE_BINARY_DIR}/src/zlogger_selftest
+                    ${CMAKE_BINARY_DIR}/src/bakery
                     ${CMAKE_BINARY_DIR}/src/zlog_selftest
 )
 

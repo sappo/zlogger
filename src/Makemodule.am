@@ -56,6 +56,13 @@ endif
 
 src_libzlog_la_LIBADD = ${project_libs}
 
+if ENABLE_BAKERY
+bin_PROGRAMS += src/bakery
+src_bakery_CPPFLAGS = ${AM_CPPFLAGS}
+src_bakery_LDADD = ${program_libs}
+src_bakery_SOURCES = src/bakery.c
+endif #ENABLE_BAKERY
+
 if ENABLE_ZLOG_SELFTEST
 check_PROGRAMS += src/zlog_selftest
 noinst_PROGRAMS += src/zlog_selftest
@@ -66,6 +73,7 @@ endif #ENABLE_ZLOG_SELFTEST
 
 # define custom target for all products of /src
 src:
+	src/bakery \
 	src/zlog_selftest \
 	src/libzlog.la
 

@@ -382,6 +382,16 @@ AM_CONDITIONAL(ON_GNU, test "x$zlogger_on_gnu" = "xyes")
 AM_CONDITIONAL(INSTALL_MAN, test "x$zlogger_install_man" = "xyes")
 AM_CONDITIONAL(BUILD_DOC, test "x$zlogger_build_doc" = "xyes")
 
+# Check for bakery intent
+AC_ARG_ENABLE([bakery],
+    AS_HELP_STRING([--enable-bakery],
+        [Compile and install 'bakery' [default=yes]]),
+    [enable_bakery=$enableval],
+    [enable_bakery=yes])
+
+AM_CONDITIONAL([ENABLE_BAKERY], [test x$enable_bakery != xno])
+AM_COND_IF([ENABLE_BAKERY], [AC_MSG_NOTICE([ENABLE_BAKERY defined])])
+
 # Check for zlog_selftest intent
 AC_ARG_ENABLE([zlog_selftest],
     AS_HELP_STRING([--enable-zlog_selftest],
