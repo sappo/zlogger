@@ -371,13 +371,13 @@ s_zlog_collect_timer (zloop_t *loop, int timer_id, void *arg)
 
     //  Read and insert leader log
     zlistx_t *messages = s_zlog_read_log (self);
-    printf ("Lines read %d %lu\n", self->linesRead, zlistx_size (messages));
+    printf ("Lines read %d %d\n", self->linesRead, (int) zlistx_size (messages));
     char *logmsg = (char *) zlistx_first (messages);
     while (logmsg) {
         zlistx_insert (self->ordered_log, logmsg, true);
         logmsg = (char *) zlistx_next (messages);
     }
-    printf ("Lines read %d %lu\n", self->linesRead, zlistx_size (self->ordered_log));
+    printf ("Lines read %d %d\n", self->linesRead, (int) zlistx_size (self->ordered_log));
     zlistx_destroy (&messages);
 
     return 0;
