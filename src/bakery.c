@@ -22,12 +22,15 @@
 int main (int argc, char *argv [])
 {
     bool verbose = false;
+    bool dump_ts = false;
     int argn;
     unsigned long waittime = 10;
     for (argn = 1; argn < argc; argn++) {
         if (streq (argv [argn], "--help")
         ||  streq (argv [argn], "-h")) {
             puts ("bakery [options] ...");
+            puts ("  --dump / -d            dump time space subgraph");
+            puts ("  --wait / -w            wait s until terminating");
             puts ("  --verbose / -v         verbose test output");
             puts ("  --help / -h            this information");
             return 0;
@@ -36,6 +39,10 @@ int main (int argc, char *argv [])
         if (streq (argv [argn], "--verbose")
         ||  streq (argv [argn], "-v"))
             verbose = true;
+        else
+        if (streq (argv [argn], "--dump")
+        ||  streq (argv [argn], "-d"))
+            dump_ts = true;
         else
         if (streq (argv [argn], "--wait")
         ||  streq (argv [argn], "-w"))
@@ -53,6 +60,8 @@ int main (int argc, char *argv [])
         zsys_info ("bakery - Bakery with zlogger support");
         zstr_send (zlog, "VERBOSE");
     }
+    if (dump_ts)
+        zstr_send (zlog, "DUMP TS");
 
     zstr_send (zlog, "START");
     //  Give time to interconnect and elect
