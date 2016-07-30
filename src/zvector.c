@@ -435,11 +435,11 @@ zvector_info (zvector_t *self, char *format, ...)
     char *clockstr = zvector_to_string (self);
     zsys_info ("/%s/ %s", clockstr, logmsg);
 
+    zvector_event (self);
     char *state = zvector_to_string_short (self, 3);
     zhash_insert (self->space_time_states_label, state, logmsg);
     zstr_free (&state);
     zstr_free (&clockstr);
-    zvector_event (self);
 }
 
 void
