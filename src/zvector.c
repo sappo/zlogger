@@ -446,7 +446,8 @@ void
 zvector_dump_time_space (zvector_t *self)
 {
     assert (self);
-    FILE *file_dst = fopen(self->own_pid, "w");
+    char *filename = zsys_sprintf ("%s.sdot", self->own_pid);
+    FILE *file_dst = fopen(filename, "w");
     assert (file_dst);
     const char newLineSymbol = '\n';
     const char *line;
@@ -495,6 +496,7 @@ zvector_dump_time_space (zvector_t *self)
         line = (const char *) zlist_next (self->space_time_events);
     }
     fclose (file_dst);
+    zstr_free (&filename);
 }
 
 
