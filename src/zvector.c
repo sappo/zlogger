@@ -24,7 +24,8 @@
 struct _zvector_t {
     char *own_pid;
     zhashx_t *clock;
-    zhash_t *space_time_states;
+    zhash_t *space_time_states_label;
+    zlist_t *space_time_states;
     zlist_t *space_time_events;
 };
 
@@ -59,7 +60,8 @@ zvector_new (const char *pid)
     unsigned long *clock_val = (unsigned long *) zmalloc (sizeof (unsigned long));
     *clock_val = 0;
     zhashx_insert (self->clock, pid, clock_val);
-    self->space_time_states = zhash_new ();
+    self->space_time_states_label = zhash_new ();
+    self->space_time_states = zlist_new ();
     self->space_time_events = zlist_new ();
     return self;
 }
@@ -77,8 +79,10 @@ zvector_destroy (zvector_t **self_p)
         //  Free class properties here
         zstr_free (&self->own_pid);
         zhashx_destroy (&self->clock);
-        zhash_autofree (self->space_time_states);
-        zhash_destroy (&self->space_time_states);
+        zhash_autofree (self->space_time_states_label);
+        zhash_destroy (&self->space_time_states_label);
+        zlist_autofree (self->space_time_states);
+        zlist_destroy (&self->space_time_states);
         zlist_autofree (self->space_time_events);
         zlist_destroy (&self->space_time_events);
         //  Free object itself
@@ -98,9 +102,7 @@ zvector_event (zvector_t *self)
     unsigned long *own_clock_value = (unsigned long *) zhashx_lookup (self->clock, self->own_pid);
     (*own_clock_value)++;
 
-    char *state = zvector_to_string_short (self, 3);
-    zhash_insert (self->space_time_states, state, NULL);
-    zstr_free (&state);
+    zlist_append (self->space_time_states, zvector_to_string_short (self, 3));
 }
 
 
@@ -434,7 +436,7 @@ zvector_info (zvector_t *self, char *format, ...)
     zsys_info ("/%s/ %s", clockstr, logmsg);
 
     char *state = zvector_to_string_short (self, 3);
-    zhash_update (self->space_time_states, state, logmsg);
+    zhash_insert (self->space_time_states_label, state, logmsg);
     zstr_free (&state);
     zstr_free (&clockstr);
     zvector_event (self);
@@ -457,10 +459,10 @@ zvector_dump_time_space (zvector_t *self)
     fwrite (subgraph_string, 1, strlen (subgraph_string), file_dst);
     zstr_free (&subgraph_string);
 
-    const char * label = (const char *) zhash_first (self->space_time_states);
-    line = (const char *) zhash_cursor (self->space_time_states);
+    const char * label = (const char *) zhash_first (self->space_time_states_label);
+    line = (const char *) zhash_cursor (self->space_time_states_label);
     size_t index;
-    for (index = 0; index < zhash_size (self->space_time_states); index++) {
+    for (index = 0; index < zhash_size (self->space_time_states_label); index++) {
         if (label) {
             fwrite ("        \"", 1, 9, file_dst);
             fwrite (line, 1, strlen (line), file_dst);
@@ -468,20 +470,18 @@ zvector_dump_time_space (zvector_t *self)
             fwrite (label, 1, strlen (label) - 1, file_dst);
             fwrite ("\"];\n", 1, 4, file_dst);
         }
-        label = (const char *) zhash_next (self->space_time_states);
-        line = (const char *) zhash_cursor (self->space_time_states);
+        label = (const char *) zhash_next (self->space_time_states_label);
+        line = (const char *) zhash_cursor (self->space_time_states_label);
     }
 
-    label = (const char *) zhash_first (self->space_time_states);
-    line = (const char *) zhash_cursor (self->space_time_states);
     fwrite ("        ", 1, 8, file_dst);
-    for (index = 0; index < zhash_size (self->space_time_states); index++) {
+    line = (const char *) zlist_first (self->space_time_states);
+    while (line) {
         fwrite ("\"", 1, 1, file_dst);
         fwrite (line, 1, strlen (line), file_dst);
         fwrite ("\"", 1, 1, file_dst);
-        label = (const char *) zhash_next (self->space_time_states);
-        line = (const char *) zhash_cursor (self->space_time_states);
-        if (index + 1 < zhash_size (self->space_time_states))
+        line = (const char *) zlist_next (self->space_time_states);
+        if (line)
             fwrite (" -> ", 1, 4, file_dst);
     }
 
