@@ -45,11 +45,14 @@ int main (int argc, char *argv [])
             return 1;
         }
     }
-    //  Insert main code here
-    if (verbose)
-        zsys_info ("bakery - Bakery with zlogger support");
 
+    //  Insert main code here
     zactor_t *zlog = zactor_new (zlog_actor, NULL);
+
+    if (verbose) {
+        zsys_info ("bakery - Bakery with zlogger support");
+        zstr_send (zlog, "VERBOSE");
+    }
 
     zstr_send (zlog, "START");
     //  Give time to interconnect and elect
