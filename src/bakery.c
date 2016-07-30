@@ -23,6 +23,7 @@ int main (int argc, char *argv [])
 {
     bool verbose = false;
     int argn;
+    unsigned long waittime = 10;
     for (argn = 1; argn < argc; argn++) {
         if (streq (argv [argn], "--help")
         ||  streq (argv [argn], "-h")) {
@@ -35,6 +36,10 @@ int main (int argc, char *argv [])
         if (streq (argv [argn], "--verbose")
         ||  streq (argv [argn], "-v"))
             verbose = true;
+        else
+        if (streq (argv [argn], "--wait")
+        ||  streq (argv [argn], "-w"))
+            waittime = strtoul (argv [++argn], NULL, 10);
         else {
             printf ("Unknown option: %s\n", argv [argn]);
             return 1;
@@ -51,10 +56,12 @@ int main (int argc, char *argv [])
     zclock_sleep (750);
 
     int64_t time = zclock_mono ();
-    // TODO: Bakery stuff!
+    waittime *= 1000;
+
+    // Bakery stuff!
     zstr_sendm (zlog, "SEND RANDOM");
     zstr_send (zlog, "STIRRED");
-    while (zclock_mono () - time < 7000) {
+    while (zclock_mono () - time < waittime) {
         zmsg_t *msg = zmsg_recv_nowait (zlog);
         if (msg) {
             char *content = zmsg_popstr (msg);
