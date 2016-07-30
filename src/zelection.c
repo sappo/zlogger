@@ -142,7 +142,7 @@ s_send_to (zelection_t *self, zmsg_t *msg, zlist_t *peers)
     assert (peers);
 
     if (zlist_size (peers) == 0)
-        return;     //  No peers found yet!
+        goto cleanup;     //  No peers found yet!
 
     const char *peer = (const char *) zlist_first (peers);
     while (peer) {
@@ -157,6 +157,7 @@ s_send_to (zelection_t *self, zmsg_t *msg, zlist_t *peers)
         peer = (char *) zlist_next (peers);
     }
 
+cleanup:
     zlist_destroy (&peers);
     zmsg_destroy (&msg);
 }
