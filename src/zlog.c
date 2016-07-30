@@ -254,6 +254,8 @@ s_zlog_recv_api (zloop_t *loop, zsock_t *reader, void *arg)
 
             zmsg_addstr (msg, owner);
 
+            zvector_info (self->clock, "S: %s - %.5s", content, owner);
+
             int rand = randof (zlist_size (peers));
             int index = 0;
             const char *peer = (const char *) zlist_first (peers);
@@ -263,7 +265,6 @@ s_zlog_recv_api (zloop_t *loop, zsock_t *reader, void *arg)
 
                 peer =  (const char *) zlist_next (peers);
             }
-            zvector_info (self->clock, "S: %s - %.5s", content, owner);
         }
 
         zlist_destroy (&peers);
