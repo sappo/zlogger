@@ -27,6 +27,7 @@ struct _zlog_t {
     bool terminated;            //  Did caller ask us to quit?
     bool verbose;               //  Verbose logging enabled?
     //  Actor properties
+    bool dump_ts;               //  Dump time space subgraph during destruction
 
     //  Leader properties
     int leader_timer;           //  ID of leader's collect timer
@@ -81,6 +82,7 @@ zlog_new (zsock_t *pipe, void *args)
     self->clock = zvector_new (zyre_uuid (self->node));
     self->election = zelection_new (self->node);
     zelection_set_clock (self->election, self->clock);
+    self->dump_ts = false;
 
     //  Initialize leader properties
     self->ordered_log = zlistx_new ();
@@ -120,8 +122,10 @@ zlog_destroy (zlog_t **self_p)
     if (*self_p) {
         zlog_t *self = *self_p;
 
+        if (self->dump_ts)
+            zvector_dump_time_space (self->clock);
+
         //  Free actor properties
-        /*zvector_dump_time_space (self->clock);*/
         zvector_destroy (&self->clock);
         zelection_destroy (&self->election);
         zecho_destroy (&self->collector);
@@ -266,6 +270,9 @@ s_zlog_recv_api (zloop_t *loop, zsock_t *reader, void *arg)
         zstr_free (&content);
         zstr_free (&owner);
     }
+    else
+    if (streq (command, "DUMP TS"))
+        self->dump_ts = true;
     else
     if (streq (command, "VERBOSE")) {
         self->verbose = true;
