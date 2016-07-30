@@ -232,13 +232,13 @@ This is the class interface:
 This is the class self test code:
 
 ```c
-    char *params1[3] = {"inproc://logger1", "logger1", "GOSSIP MASTER"};
+    char *params1[2] = {"inproc://logger1", "GOSSIP MASTER"};
     zactor_t *zlog = zactor_new (zlog_actor, params1);
     
-    char *params2[3] = {"inproc://logger2", "logger2", "GOSSIP SLAVE"};
+    char *params2[2] = {"inproc://logger2", "GOSSIP SLAVE"};
     zactor_t *zlog2 = zactor_new (zlog_actor, params2);
     
-    char *params3[3] = {"inproc://logger3", "logger3", "GOSSIP SLAVE"};
+    char *params3[2] = {"inproc://logger3", "GOSSIP SLAVE"};
     zactor_t *zlog3 = zactor_new (zlog_actor, params3);
     
     /*char *params4[3] = {"inproc://logger4", "logger4", "GOSSIP SLAVE"};*/

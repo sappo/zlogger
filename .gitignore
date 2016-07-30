@@ -21,6 +21,7 @@ save.xml
 # Executables
 src/zlogger_selftest
 src/zlog_selftest
+src/bakery
 *.exe
 *.out
 *.app
@@ -90,3 +91,4 @@ build/
 # Temporary files
 *.swp
 *~
+ordered_log
