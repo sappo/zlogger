@@ -466,7 +466,7 @@ zvector_dump_time_space (zvector_t *self)
         if (label) {
             fwrite ("        \"", 1, 9, file_dst);
             fwrite (line, 1, strlen (line), file_dst);
-            fwrite ("\"[style=filled, fillcolor=green label=\"", 1, 39, file_dst);
+            fwrite ("\"[style=filled, fillcolor=aquamarine label=\"", 1, 44, file_dst);
             fwrite (label, 1, strlen (label) - 1, file_dst);
             fwrite ("\"];\n", 1, 4, file_dst);
         }
