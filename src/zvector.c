@@ -327,6 +327,7 @@ zvector_from_string (char *clock_string)
     assert (clock_string);
     assert (clock_string[0] == 'V');
     assert (clock_string[1] == 'C');
+    assert (clock_string[strlen (clock_string)-1] == ';');
 
     //formation: 'VC:$numberOfClocks;own:$ownPid;$pid1,$val1;...;$pidx,$valx;\0'
     unsigned long vc_count = 0;
