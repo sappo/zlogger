@@ -245,6 +245,7 @@ s_zlog_recv_api (zloop_t *loop, zsock_t *reader, void *arg)
         if (!peers || zlist_size (peers) == 0)
             zvector_info (self->clock, "%s", "No friends!");
         else {
+            zvector_info (self->clock, "S: %s - %.5s", content, owner);
             zmsg_t *msg = zmsg_new ();
             zvector_send_prepare (self->clock, msg);
             zmsg_addstr (msg, "BAKERY");
@@ -253,8 +254,6 @@ s_zlog_recv_api (zloop_t *loop, zsock_t *reader, void *arg)
                 owner = strdup (zyre_uuid (self->node));
 
             zmsg_addstr (msg, owner);
-
-            zvector_info (self->clock, "S: %s - %.5s", content, owner);
 
             int rand = randof (zlist_size (peers));
             int index = 0;
