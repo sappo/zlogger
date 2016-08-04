@@ -25,6 +25,8 @@ int main (int argc, char *argv [])
     bool dump_ts = false;
     int argn;
     unsigned long waittime = 10;
+    char *params[2];
+    zactor_t *zlog = NULL;
     for (argn = 1; argn < argc; argn++) {
         if (streq (argv [argn], "--help")
         ||  streq (argv [argn], "-h")) {
@@ -32,6 +34,8 @@ int main (int argc, char *argv [])
             puts ("  --dump / -d            dump time space subgraph");
             puts ("  --wait / -w            wait s until terminating");
             puts ("  --verbose / -v         verbose test output");
+            puts ("  --master / -m name     start bakery via inproc as gossip master");
+            puts ("  --slave / -s name      start bakery via inproc as gossip slave");
             puts ("  --help / -h            this information");
             return 0;
         }
@@ -44,6 +48,22 @@ int main (int argc, char *argv [])
         ||  streq (argv [argn], "-d"))
             dump_ts = true;
         else
+        if (streq (argv [argn], "--master")
+        ||  streq (argv [argn], "-m")) {
+            params[0] = zsys_sprintf ("inproc://%s",  argv[++argn]);
+            params[1] = "GOSSIP MASTER";
+            printf ("%s, %s\n", params[0], params[1]);
+            zlog = zactor_new (zlog_actor, params);
+        }
+        else
+        if (streq (argv [argn], "--slave")
+        ||  streq (argv [argn], "-s")) {
+            params[0] = zsys_sprintf ("inproc://%s",  argv[++argn]);
+            params[1] = "GOSSIP SLAVE";
+            printf ("%s, %s\n", params[0], params[1]);
+            zlog = zactor_new (zlog_actor, params);
+        }
+        else
         if (streq (argv [argn], "--wait")
         ||  streq (argv [argn], "-w"))
             waittime = strtoul (argv [++argn], NULL, 10);
@@ -54,7 +74,8 @@ int main (int argc, char *argv [])
     }
 
     //  Insert main code here
-    zactor_t *zlog = zactor_new (zlog_actor, NULL);
+    if (!zlog)
+        zlog = zactor_new (zlog_actor, NULL);
 
     if (verbose) {
         zsys_info ("bakery - Bakery with zlogger support");

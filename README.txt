@@ -136,7 +136,32 @@ Include `zlogger.h` in your application and link with libzlogger. Here is a typi
 
 ### Demo
 
-The demo script are available in demo/ folder. Please refer to demo/README.md.
+The demo scripts are available in demo/ folder. Please refer to demo/README.md.
+
+### Bakery
+
+At first you need to copy the rsyslog configuration file 1337-logger.conf into
+the directory /etc/rsyslog.d/ and restart your rsyslog daemon
+
+    cp 1337-logger.conf /etc/rsyslog.d/1337-logger.conf
+    service rsyslogd restart
+
+To run the bakery with 3 apprentices locally run
+
+    ./src/bakery & ./src/bakery & ./src/bakery & wait
+
+Each bakery will write have its own log file at /tmp/vc_*.log. The leader will
+write the causal ordered log to ./ordered.log. If this file is empty, rsyslog
+did not yet write any log entries or the collection algorithm has not yet been
+triggered. To provide the bakery with more time to get all log files use the
+option -w [n]s. To dump the Space-Time diagramms use -d parameter.
+
+    ./src/bakery -d -w 15 & ./src/bakery -d -w 15 & ./src/bakery -d -w 15 & wait
+
+The global syslog log is written to /tmp/global.log
+
+To generate the final space time diagram use the ./generate_space_time.sh
+script. This will generate the SVG ./dia_space_time.svg.
 
 ### API Summary
 
