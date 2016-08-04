@@ -56,7 +56,9 @@ Which we install like this (using the Debian-style apt-get package manager):
     sudo apt-get install -y asciidoc
 ```
 
-Here's how to build Zlogger from GitHub (building from packages is very similar, you don't clone a repo but unpack a tarball), including the libsodium (for security) and libzmq (ZeroMQ core) libraries:
+Here's how to build Zlogger from GitHub/Gitlab (building from packages is very
+similar, you don't clone a repo but unpack a tarball), including the libsodium
+(for security) and libzmq (ZeroMQ core) libraries:
 
 ```
     git clone git://github.com/zeromq/libzmq.git
@@ -131,6 +133,10 @@ Test by running the `zlogger_selftest` command:
 Include `zlogger.h` in your application and link with libzlogger. Here is a typical gcc link command:
 
     gcc -lzlogger -lzyre -lczmq -lzmq myapp.c -o myapp
+
+### Demo
+
+The demo script are available in demo/ folder. Please refer to demo/README.md.
 
 ### API Summary
 
