@@ -84,12 +84,12 @@ Here's how to build Zlogger from GitHub (building from packages is very similar,
     sudo ldconfig
     cd ..
 
-    git clone git@zenon.cs.hs-rm.de:causality-logger/zlogger.git
+    git clone git://zenon.cs.hs-rm.de:causality-logger/zlogger.git
     cd zlogger
-    ./autogen.sh && ./configure && make check
-    sudo make install
+    ./autogen.sh && ./configure && make check sudo make install
     sudo ldconfig
     cd ..
+
 ```
 
 ### Building on Windows
