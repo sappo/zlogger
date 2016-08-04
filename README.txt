@@ -111,7 +111,7 @@ Now let's build Zlogger from GitHub:
     git clone git://github.com/zeromq/libzmq.git
     git clone git://github.com/zeromq/czmq.git
     git clone git://github.com/zeromq/zyre.git
-    git clone git clone git@zenon.cs.hs-rm.de:causality-logger/zlogger.git
+    git clone https://zenon.cs.hs-rm.de/causality-logger/zlogger.git
     cd zlogger\builds\msvc configure.bat
     cd build buildall.bat
     cd ..\..\..\..
