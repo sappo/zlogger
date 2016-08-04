@@ -116,9 +116,9 @@ similar, you don't clone a repo but unpack a tarball), including the libsodium
     sudo ldconfig
     cd ..
 
-    git clone git://zenon.cs.hs-rm.de:causality-logger/zlogger.git
+    git clone https://zenon.cs.hs-rm.de/causality-logger/zlogger.git
     cd zlogger
-    ./autogen.sh && ./configure && make check sudo make install
+    ./autogen.sh && ./configure && make check && sudo make install
     sudo ldconfig
     cd ..
 
