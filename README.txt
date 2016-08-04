@@ -1,9 +1,7 @@
-.set GIT=https://github.com/zeromq/zlogger
+.set GIT=https://zenon.cs.hs-rm.de/causality-logger/zlogger
 .sub 0MQ=ØMQ
 
 # Zlogger
-
-[![Build Status](https://travis-ci.org/zeromq/zlogger.svg?branch=master)](https://travis-ci.org/...)
 
 ## Contents
 
@@ -21,7 +19,8 @@ Zlogger uses the [C4.1 (Collective Code Construction Contract)](http://rfc.zerom
 
 Zlogger uses the [CLASS (C Language Style for Scalabilty)](http://rfc.zeromq.org/spec:21) guide for code style.
 
-To report an issue, use the [Zlogger issue tracker](https://github.com/zeromq/zlogger/issues) at github.com.
+To report an issue, use the [Zlogger issue tracker](https://zenon.cs.hs-rm.de/causality-logger/zlogger/issues) at
+gitlab.com.
 
 ## Using Zlogger
 
@@ -56,21 +55,16 @@ Which we install like this (using the Debian-style apt-get package manager):
     # well (adds to build time):
     sudo apt-get install -y asciidoc
 ```
+
 Here's how to build Zlogger from GitHub (building from packages is very similar, you don't clone a repo but unpack a tarball), including the libsodium (for security) and libzmq (ZeroMQ core) libraries:
 
 ```
-    git clone --depth 1 -b stable https://github.com/jedisct1/libsodium.git
-    cd libsodium
-    ./autogen.sh && ./configure && make check
-    sudo make install
-    cd ..
-
     git clone git://github.com/zeromq/libzmq.git
     cd libzmq
     ./autogen.sh
     # do not specify "--with-libsodium" if you prefer to use internal tweetnacl
     # security implementation (recommended for development)
-    ./configure --with-libsodium
+    ./configure
     make check
     sudo make install
     sudo ldconfig
@@ -90,7 +84,7 @@ Here's how to build Zlogger from GitHub (building from packages is very similar,
     sudo ldconfig
     cd ..
 
-    git clone git://github.com/.../...git
+    git clone git@zenon.cs.hs-rm.de:causality-logger/zlogger.git
     cd zlogger
     ./autogen.sh && ./configure && make check
     sudo make install
@@ -115,12 +109,11 @@ Now let's build Zlogger from GitHub:
     git clone git://github.com/zeromq/libzmq.git
     git clone git://github.com/zeromq/czmq.git
     git clone git://github.com/zeromq/zyre.git
-    git clone git://github.com/zeromq/zlogger.git
-    cd zlogger\builds\msvc
-    configure.bat
-    cd build
-    buildall.bat
+    git clone git clone git@zenon.cs.hs-rm.de:causality-logger/zlogger.git
+    cd zlogger\builds\msvc configure.bat
+    cd build buildall.bat
     cd ..\..\..\..
+
 ```
 
 Test by running the `zlogger_selftest` command:
@@ -146,6 +139,7 @@ This is the API provided by Zlogger 0.x, in alphabetical order.
 .pull doc/zlog.doc
 .pull doc/zecho.doc
 .pull doc/zvector.doc
+.pull doc/bakery.doc
 
 ### Hints to Contributors
 
@@ -155,6 +149,7 @@ Don't include system headers in source files. The right place for these is CZMQ.
 
 Do read your code after you write it and ask, "Can I make this simpler?" We do use a nice minimalist and yet readable style. Learn it, adopt it, use it.
 
-Before opening a pull request read our [contribution guidelines](https://github.com/zeromq/zlogger/blob/master/CONTRIBUTING.md). Thanks!
+Before opening a pull request read our [contribution guidelines](https://zenon.cs.hs-rm.de/causality-logger/zlogger/blob/master/README.md).
+Thanks!
 
 ### This Document

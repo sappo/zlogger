@@ -2,42 +2,41 @@
 <A name="toc1-3" title="Zlogger" />
 # Zlogger
 
-[![Build Status](https://travis-ci.org/zeromq/zlogger.svg?branch=master)](https://travis-ci.org/...)
-
-<A name="toc2-8" title="Contents" />
+<A name="toc2-6" title="Contents" />
 ## Contents
 
 
-**<a href="#toc2-13">Overview</a>**
+**<a href="#toc2-11">Overview</a>**
 
-**<a href="#toc3-16">Scope and Goals</a>**
+**<a href="#toc3-14">Scope and Goals</a>**
 
-**<a href="#toc3-19">Ownership and License</a>**
+**<a href="#toc3-17">Ownership and License</a>**
 
-**<a href="#toc2-30">Using Zlogger</a>**
+**<a href="#toc2-29">Using Zlogger</a>**
 
-**<a href="#toc3-33">Building on Linux</a>**
+**<a href="#toc3-32">Building on Linux</a>**
 
-**<a href="#toc3-107">Building on Windows</a>**
+**<a href="#toc3-101">Building on Windows</a>**
 
-**<a href="#toc3-143">Linking with an Application</a>**
+**<a href="#toc3-136">Linking with an Application</a>**
 
-**<a href="#toc3-150">API Summary</a>**
-*  <a href="#toc4-155">zlog - zlog actor</a>
-*  <a href="#toc4-260">zecho - Implements the echo algorithms</a>
-*  <a href="#toc4-485">zvector - Implements a dynamic vector clock</a>
+**<a href="#toc3-143">API Summary</a>**
+*  <a href="#toc4-148">zlog - zlog actor</a>
+*  <a href="#toc4-253">zecho - Implements the echo algorithms</a>
+*  <a href="#toc4-478">zvector - Implements a dynamic vector clock</a>
+*  <a href="#toc4-690">bakery - Bakery with zlogger support</a>
 
-**<a href="#toc3-698">Hints to Contributors</a>**
+**<a href="#toc3-706">Hints to Contributors</a>**
 
-**<a href="#toc3-709">This Document</a>**
+**<a href="#toc3-718">This Document</a>**
 
-<A name="toc2-13" title="Overview" />
+<A name="toc2-11" title="Overview" />
 ## Overview
 
-<A name="toc3-16" title="Scope and Goals" />
+<A name="toc3-14" title="Scope and Goals" />
 ### Scope and Goals
 
-<A name="toc3-19" title="Ownership and License" />
+<A name="toc3-17" title="Ownership and License" />
 ### Ownership and License
 
 The contributors are listed in AUTHORS. This project uses the MPL v2 license, see LICENSE.
@@ -46,12 +45,13 @@ Zlogger uses the [C4.1 (Collective Code Construction Contract)](http://rfc.zerom
 
 Zlogger uses the [CLASS (C Language Style for Scalabilty)](http://rfc.zeromq.org/spec:21) guide for code style.
 
-To report an issue, use the [Zlogger issue tracker](https://github.com/zeromq/zlogger/issues) at github.com.
+To report an issue, use the [Zlogger issue tracker](https://zenon.cs.hs-rm.de/causality-logger/zlogger/issues) at
+gitlab.com.
 
-<A name="toc2-30" title="Using Zlogger" />
+<A name="toc2-29" title="Using Zlogger" />
 ## Using Zlogger
 
-<A name="toc3-33" title="Building on Linux" />
+<A name="toc3-32" title="Building on Linux" />
 ### Building on Linux
 
 To start with, you need at least these packages:
@@ -83,21 +83,16 @@ Which we install like this (using the Debian-style apt-get package manager):
     # well (adds to build time):
     sudo apt-get install -y asciidoc
 ```
+
 Here's how to build Zlogger from GitHub (building from packages is very similar, you don't clone a repo but unpack a tarball), including the libsodium (for security) and libzmq (ZeroMQ core) libraries:
 
 ```
-    git clone --depth 1 -b stable https://github.com/jedisct1/libsodium.git
-    cd libsodium
-    ./autogen.sh && ./configure && make check
-    sudo make install
-    cd ..
-
     git clone git://github.com/zeromq/libzmq.git
     cd libzmq
     ./autogen.sh
     # do not specify "--with-libsodium" if you prefer to use internal tweetnacl
     # security implementation (recommended for development)
-    ./configure --with-libsodium
+    ./configure
     make check
     sudo make install
     sudo ldconfig
@@ -117,7 +112,7 @@ Here's how to build Zlogger from GitHub (building from packages is very similar,
     sudo ldconfig
     cd ..
 
-    git clone git://github.com/.../...git
+    git clone git@zenon.cs.hs-rm.de:causality-logger/zlogger.git
     cd zlogger
     ./autogen.sh && ./configure && make check
     sudo make install
@@ -125,7 +120,7 @@ Here's how to build Zlogger from GitHub (building from packages is very similar,
     cd ..
 ```
 
-<A name="toc3-107" title="Building on Windows" />
+<A name="toc3-101" title="Building on Windows" />
 ### Building on Windows
 
 To start with, you need MS Visual Studio (C/C++). The free community edition works well.
@@ -143,12 +138,11 @@ Now let's build Zlogger from GitHub:
     git clone git://github.com/zeromq/libzmq.git
     git clone git://github.com/zeromq/czmq.git
     git clone git://github.com/zeromq/zyre.git
-    git clone git://github.com/zeromq/zlogger.git
-    cd zlogger\builds\msvc
-    configure.bat
-    cd build
-    buildall.bat
+    git clone git clone git@zenon.cs.hs-rm.de:causality-logger/zlogger.git
+    cd zlogger\builds\msvc configure.bat
+    cd build buildall.bat
     cd ..\..\..\..
+
 ```
 
 Test by running the `zlogger_selftest` command:
@@ -161,19 +155,19 @@ Test by running the `zlogger_selftest` command:
     zlogger\builds\msvc\vs2013\DebugDEXE\zlogger_selftest.exe
 ```
 
-<A name="toc3-143" title="Linking with an Application" />
+<A name="toc3-136" title="Linking with an Application" />
 ### Linking with an Application
 
 Include `zlogger.h` in your application and link with libzlogger. Here is a typical gcc link command:
 
     gcc -lzlogger -lzyre -lczmq -lzmq myapp.c -o myapp
 
-<A name="toc3-150" title="API Summary" />
+<A name="toc3-143" title="API Summary" />
 ### API Summary
 
 This is the API provided by Zlogger 0.x, in alphabetical order.
 
-<A name="toc4-155" title="zlog - zlog actor" />
+<A name="toc4-148" title="zlog - zlog actor" />
 #### zlog - zlog actor
 
 zlog - zlog actor
@@ -278,7 +272,7 @@ This is the class self test code:
     /*zlog_order_log ("/var/log/vc.log", "ordered_vc1.log");*/
 ```
 
-<A name="toc4-260" title="zecho - Implements the echo algorithms" />
+<A name="toc4-253" title="zecho - Implements the echo algorithms" />
 #### zecho - Implements the echo algorithms
 
 zecho - Implements the echo algorithms which consist of two distinct waves.
@@ -503,7 +497,7 @@ This is the class self test code:
     
 ```
 
-<A name="toc4-485" title="zvector - Implements a dynamic vector clock" />
+<A name="toc4-478" title="zvector - Implements a dynamic vector clock" />
 #### zvector - Implements a dynamic vector clock
 
 zvector - Implements a dynamic vector clock
@@ -715,8 +709,23 @@ This is the class self test code:
     
 ```
 
+<A name="toc4-690" title="bakery - Bakery with zlogger support" />
+#### bakery - Bakery with zlogger support
 
-<A name="toc3-698" title="Hints to Contributors" />
+bakery - Bakery with zlogger support
+
+Please add @discuss section in ../src/bakery.c.
+
+This is the class interface:
+
+Please add @interface section in ../src/bakery.c.
+
+This is the class self test code:
+
+Please add @selftest section in ../src/bakery.c.
+
+
+<A name="toc3-706" title="Hints to Contributors" />
 ### Hints to Contributors
 
 Zlogger is a nice, neat library, and you may not immediately appreciate why. Read the CLASS style guide please, and write your code to make it indistinguishable from the rest of the code in the library. That is the only real criteria for good style: it's invisible.
@@ -725,9 +734,10 @@ Don't include system headers in source files. The right place for these is CZMQ.
 
 Do read your code after you write it and ask, "Can I make this simpler?" We do use a nice minimalist and yet readable style. Learn it, adopt it, use it.
 
-Before opening a pull request read our [contribution guidelines](https://github.com/zeromq/zlogger/blob/master/CONTRIBUTING.md). Thanks!
+Before opening a pull request read our [contribution guidelines](https://zenon.cs.hs-rm.de/causality-logger/zlogger/blob/master/README.md).
+Thanks!
 
-<A name="toc3-709" title="This Document" />
+<A name="toc3-718" title="This Document" />
 ### This Document
 
 _This documentation was generated from zlogger/README.txt using [Gitdown](https://github.com/zeromq/gitdown)_
