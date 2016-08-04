@@ -24,15 +24,15 @@
 
 **<a href="#toc3-151">Bakery</a>**
 
-**<a href="#toc3-177">API Summary</a>**
-*  <a href="#toc4-182">zlog - zlog actor</a>
-*  <a href="#toc4-287">zecho - Implements the echo algorithms</a>
-*  <a href="#toc4-512">zvector - Implements a dynamic vector clock</a>
-*  <a href="#toc4-724">bakery - Bakery with zlogger support</a>
+**<a href="#toc3-180">API Summary</a>**
+*  <a href="#toc4-185">zlog - zlog actor</a>
+*  <a href="#toc4-290">zecho - Implements the echo algorithms</a>
+*  <a href="#toc4-515">zvector - Implements a dynamic vector clock</a>
+*  <a href="#toc4-727">bakery - Bakery with zlogger support</a>
 
-**<a href="#toc3-740">Hints to Contributors</a>**
+**<a href="#toc3-743">Hints to Contributors</a>**
 
-**<a href="#toc3-752">This Document</a>**
+**<a href="#toc3-755">This Document</a>**
 
 <A name="toc2-11" title="Overview" />
 ## Overview
@@ -198,14 +198,17 @@ option -w [n]s. To dump the Space-Time diagrams use -d parameter.
 The global syslog log is written to /tmp/global.log
 
 To generate the final space time diagram use the ./generate_space_time.sh
-script. This will generate the SVG ./dia_space_time.svg.
+script. This will generate the SVG ./dia_space_time.svg. Make sure you have
+graphviz installed on your system i.e.
 
-<A name="toc3-177" title="API Summary" />
+    sudo apt-get install graphviz
+
+<A name="toc3-180" title="API Summary" />
 ### API Summary
 
 This is the API provided by Zlogger 0.x, in alphabetical order.
 
-<A name="toc4-182" title="zlog - zlog actor" />
+<A name="toc4-185" title="zlog - zlog actor" />
 #### zlog - zlog actor
 
 zlog - zlog actor
@@ -310,7 +313,7 @@ This is the class self test code:
     /*zlog_order_log ("/var/log/vc.log", "ordered_vc1.log");*/
 ```
 
-<A name="toc4-287" title="zecho - Implements the echo algorithms" />
+<A name="toc4-290" title="zecho - Implements the echo algorithms" />
 #### zecho - Implements the echo algorithms
 
 zecho - Implements the echo algorithms which consist of two distinct waves.
@@ -535,7 +538,7 @@ This is the class self test code:
     
 ```
 
-<A name="toc4-512" title="zvector - Implements a dynamic vector clock" />
+<A name="toc4-515" title="zvector - Implements a dynamic vector clock" />
 #### zvector - Implements a dynamic vector clock
 
 zvector - Implements a dynamic vector clock
@@ -747,7 +750,7 @@ This is the class self test code:
     
 ```
 
-<A name="toc4-724" title="bakery - Bakery with zlogger support" />
+<A name="toc4-727" title="bakery - Bakery with zlogger support" />
 #### bakery - Bakery with zlogger support
 
 bakery - Bakery with zlogger support
@@ -763,7 +766,7 @@ This is the class self test code:
 Please add @selftest section in ../src/bakery.c.
 
 
-<A name="toc3-740" title="Hints to Contributors" />
+<A name="toc3-743" title="Hints to Contributors" />
 ### Hints to Contributors
 
 Zlogger is a nice, neat library, and you may not immediately appreciate why. Read the CLASS style guide please, and write your code to make it indistinguishable from the rest of the code in the library. That is the only real criteria for good style: it's invisible.
@@ -775,7 +778,7 @@ Do read your code after you write it and ask, "Can I make this simpler?" We do u
 Before opening a pull request read our [contribution guidelines](https://zenon.cs.hs-rm.de/causality-logger/zlogger/blob/master/README.md).
 Thanks!
 
-<A name="toc3-752" title="This Document" />
+<A name="toc3-755" title="This Document" />
 ### This Document
 
 _This documentation was generated from zlogger/README.txt using [Gitdown](https://github.com/zeromq/gitdown)_

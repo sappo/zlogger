@@ -162,7 +162,10 @@ option -w [n]s. To dump the Space-Time diagrams use -d parameter.
 The global syslog log is written to /tmp/global.log
 
 To generate the final space time diagram use the ./generate_space_time.sh
-script. This will generate the SVG ./dia_space_time.svg.
+script. This will generate the SVG ./dia_space_time.svg. Make sure you have
+graphviz installed on your system i.e.
+
+    sudo apt-get install graphviz
 
 ### API Summary
 
