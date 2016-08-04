@@ -181,17 +181,17 @@ At first you need to copy the rsyslog configuration file 1337-logger.conf into
 the directory /etc/rsyslog.d/ and restart your rsyslog daemon
 
     cp 1337-logger.conf /etc/rsyslog.d/1337-logger.conf
-    service rsyslogd restart
+    sudo service rsyslog restart
 
-To run the bakery with 3 apprentices locally run
+To run the bakery with 3 apprentices locally
 
     ./src/bakery & ./src/bakery & ./src/bakery & wait
 
-Each bakery will write have its own log file at /tmp/vc_*.log. The leader will
-write the causal ordered log to ./ordered.log. If this file is empty, rsyslog
-did not yet write any log entries or the collection algorithm has not yet been
+Each bakery will have its own log file at /tmp/vc_*.log. The leader will write
+the causal ordered log to ./ordered.log. If this file is empty, rsyslog did not
+yet write any log entries or the collection algorithm has not yet been
 triggered. To provide the bakery with more time to get all log files use the
-option -w [n]s. To dump the Space-Time diagramms use -d parameter.
+option -w [n]s. To dump the Space-Time diagrams use -d parameter.
 
     ./src/bakery -d -w 15 & ./src/bakery -d -w 15 & ./src/bakery -d -w 15 & wait
 
