@@ -1,0 +1,6 @@
+czmq/
+libzmq/
+zyre/
+zlogger/
+tmp/
+tools/

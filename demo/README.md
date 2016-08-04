@@ -1,9 +1,19 @@
-Cross build for raspberry pi
-* Copy ./build_zlogger_for_pi.sh file to /home/sappo/workspace/rpi-tools
-* Run the script!
+# Zlogger Raspberry Pi Demo
 
-Run on cluster with 3 Pis
-./run_zlogger.sh
+## Cross build and deploy to the Raspberry Pi Cluster
 
-Run on cluster with 20 Pis
-./run_zlogger_full.sh
+Make sure you're in the Dopsy-Network or connected to it via VPN
+
+    ./build_zlogger_for_pi.sh
+
+## Run on cluster with 3 Pis
+
+Make sure you're in the Dopsy-Network or connected to it via VPN
+
+    ./run_zlogger.sh
+
+## Run on cluster with 20 Pis
+
+Make sure you're in the Dopsy-Network or connected to it via VPN
+
+    ./run_zlogger_full.sh
