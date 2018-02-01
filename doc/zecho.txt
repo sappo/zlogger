@@ -3,7 +3,7 @@ zecho(3)
 
 NAME
 ----
-zecho - Implements the echo algorithms
+zecho - Class for Implements the echo algorithms
 
 SYNOPSIS
 --------
@@ -75,6 +75,7 @@ ZLOG_EXPORT void
 ZLOG_EXPORT void
     zecho_test (bool verbose);
 
+Please add '@interface' section in './../src/zecho.c'.
 ----
 
 DESCRIPTION
@@ -87,7 +88,7 @@ zecho - Implements the echo algorithms which consist of two distinct waves.
         initiator. It it used to collect things from peers. Collectables are
         e.g. ACKs or arbitrary data.
 
-Please add @discuss section in ../src/zecho.c.
+Please add '@discuss' section in './../src/zecho.c'.
 
 EXAMPLE
 -------

@@ -7,7 +7,7 @@ zecho - Implements the echo algorithms which consist of two distinct waves.
         initiator. It it used to collect things from peers. Collectables are
         e.g. ACKs or arbitrary data.
 
-Please add @discuss section in ../src/zecho.c.
+Please add '@discuss' section in './../src/zecho.c'.
 
 This is the class interface:
 
@@ -80,6 +80,7 @@ This is the class interface:
         zecho_test (bool verbose);
     
 ```
+Please add '@interface' section in './../src/zecho.c'.
 
 This is the class self test code:
 

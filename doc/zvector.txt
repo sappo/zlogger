@@ -3,7 +3,7 @@ zvector(3)
 
 NAME
 ----
-zvector - Implements a dynamic vector clock
+zvector - Class for Implements a dynamic vector clock
 
 SYNOPSIS
 --------
@@ -61,6 +61,7 @@ ZLOG_EXPORT void
 ZLOG_EXPORT void
     zvector_test (bool verbose);
 
+Please add '@interface' section in './../src/zvector.c'.
 ----
 
 DESCRIPTION
@@ -68,7 +69,7 @@ DESCRIPTION
 
 zvector - Implements a dynamic vector clock
 
-Please add @discuss section in ../src/zvector.c.
+Please add '@discuss' section in './../src/zvector.c'.
 
 EXAMPLE
 -------

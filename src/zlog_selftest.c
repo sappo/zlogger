@@ -32,6 +32,7 @@ all_tests [] = {
     { "zecho", zecho_test },
     { "zvector", zvector_test },
     { "zelection", zelection_test },
+    { "selection", selection_test },
     { "zlog", zlog_test },
 #endif // ZLOG_BUILD_DRAFT_API
 #ifdef ZLOG_BUILD_DRAFT_API
@@ -94,7 +95,7 @@ main (int argc, char **argv)
         else
         if (streq (argv [argn], "--number")
         ||  streq (argv [argn], "-n")) {
-            puts ("4");
+            puts ("5");
             return 0;
         }
         else
@@ -104,6 +105,7 @@ main (int argc, char **argv)
             puts ("    zecho\t\t- draft");
             puts ("    zvector\t\t- draft");
             puts ("    zelection\t\t- draft");
+            puts ("    selection\t\t- draft");
             puts ("    zlog\t\t- draft");
             puts ("    private_classes\t- draft");
             return 0;

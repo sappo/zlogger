@@ -2,7 +2,7 @@
 
 zlog - zlog actor
 
-Please add @discuss section in ../src/zlog.c.
+Please add '@discuss' section in './../src/zlog.c'.
 
 This is the class interface:
 
@@ -52,6 +52,7 @@ This is the class interface:
     ZLOG_EXPORT void
         zlog_test (bool verbose);
 ```
+Please add '@interface' section in './../src/zlog.c'.
 
 This is the class self test code:
 

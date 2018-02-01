@@ -2,7 +2,7 @@
 
 zelection - Holds an election with all connected peers
 
-Please add @discuss section in ../src/zelection.c.
+Please add '@discuss' section in './../src/zelection.c'.
 
 This is the class interface:
 
@@ -54,6 +54,7 @@ This is the class interface:
         zelection_test (bool verbose);
     
 ```
+Please add '@interface' section in './../src/zelection.c'.
 
 This is the class self test code:
 

@@ -14,6 +14,7 @@
     <class name = "zecho">Implements the echo algorithms</class>
     <class name = "zvector">Implements a dynamic vector clock</class>
     <class name = "zelection">Holds an election with all connected peers</class>
+    <class name = "selection">Holds an election with all connected peers</class>
 
     <main name = "bakery">Bakery with zlogger support</main>
 

@@ -2,7 +2,7 @@
 
 zvector - Implements a dynamic vector clock
 
-Please add @discuss section in ../src/zvector.c.
+Please add '@discuss' section in './../src/zvector.c'.
 
 This is the class interface:
 
@@ -61,6 +61,7 @@ This is the class interface:
         zvector_test (bool verbose);
     
 ```
+Please add '@interface' section in './../src/zvector.c'.
 
 This is the class self test code:
 

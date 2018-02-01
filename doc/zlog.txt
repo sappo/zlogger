@@ -3,7 +3,7 @@ zlog(3)
 
 NAME
 ----
-zlog - zlog actor
+zlog - Class for zlog actor
 
 SYNOPSIS
 --------
@@ -52,6 +52,7 @@ ZLOG_EXPORT void
 //  Self test of this actor
 ZLOG_EXPORT void
     zlog_test (bool verbose);
+Please add '@interface' section in './../src/zlog.c'.
 ----
 
 DESCRIPTION
@@ -59,7 +60,7 @@ DESCRIPTION
 
 zlog - zlog actor
 
-Please add @discuss section in ../src/zlog.c.
+Please add '@discuss' section in './../src/zlog.c'.
 
 EXAMPLE
 -------

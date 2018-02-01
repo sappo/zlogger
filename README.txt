@@ -135,6 +135,28 @@ Include `zlogger.h` in your application and link with libzlogger. Here is a typi
 
     gcc -lzlogger -lzyre -lczmq -lzmq myapp.c -o myapp
 
+### Election Protocol
+
+* When a peer joins the network it shall be given some time to discover other
+  peers.
+* After the initial discovery phase a peer will start a challenge to become
+  leader by sending a ELECTION message.
+* If a peer receives a ELECTION message and the challengers ID is lower than the
+  own ID it will forward the leader message to all known peer but the one it
+  received the message from. Further the challangers ID will be saved
+  a potential leader and the sender will become this peers father.
+* If a peer receives a ELECTION message and the challengers ID is higher than
+  the own ID it discard the message.
+* If a peer received ELECTION messages from all of its known peers. The peer
+  will send a LEADER message to all of its known peers with the ID of the
+  leader.
+* If a peer receives a LEADER message with the leader's ID the peer will set
+  this ID as his leader and forwards the LEADER message to all of its known
+  peers.
+* If a peer received LEADER message from all of its known peers the election is
+  finished. In case the leaders ID equals his own ID this peer promote itsself
+  to leader, otherwise it will become a follower.
+
 ### Demo
 
 The demo scripts are available in demo/ folder. Please refer to demo/README.md.

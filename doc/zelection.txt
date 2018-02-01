@@ -3,7 +3,7 @@ zelection(3)
 
 NAME
 ----
-zelection - Holds an election with all connected peers
+zelection - Class for Holds an election with all connected peers
 
 SYNOPSIS
 --------
@@ -54,6 +54,7 @@ ZLOG_EXPORT void
 ZLOG_EXPORT void
     zelection_test (bool verbose);
 
+Please add '@interface' section in './../src/zelection.c'.
 ----
 
 DESCRIPTION
@@ -61,7 +62,7 @@ DESCRIPTION
 
 zelection - Holds an election with all connected peers
 
-Please add @discuss section in ../src/zelection.c.
+Please add '@discuss' section in './../src/zelection.c'.
 
 EXAMPLE
 -------

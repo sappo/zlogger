@@ -21,6 +21,7 @@ include_HEADERS += \
     include/zecho.h \
     include/zvector.h \
     include/zelection.h \
+    include/selection.h \
     include/zlog.h
 
 endif
@@ -32,6 +33,7 @@ src_libzlog_la_SOURCES += \
     src/zecho.c \
     src/zvector.c \
     src/zelection.c \
+    src/selection.c \
     src/zlog.c
 
 endif
