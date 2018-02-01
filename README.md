@@ -1,46 +1,41 @@
 
-<A name="toc1-3" title="Zlogger" />
 # Zlogger
 
-<A name="toc2-6" title="Contents" />
 ## Contents
 
 
-**<a href="#toc2-11">Overview</a>**
+**[Overview](#overview)**
 
-**<a href="#toc3-14">Scope and Goals</a>**
+**[Scope and Goals](#scope-and-goals)**
 
-**<a href="#toc3-17">Ownership and License</a>**
+**[Ownership and License](#ownership-and-license)**
 
-**<a href="#toc2-29">Using Zlogger</a>**
+**[Using Zlogger](#using-zlogger)**
 
-**<a href="#toc3-32">Building on Linux</a>**
+**[Building on Linux](#building-on-linux)**
 
-**<a href="#toc3-104">Building on Windows</a>**
+**[Building on Windows](#building-on-windows)**
 
-**<a href="#toc3-139">Linking with an Application</a>**
+**[Linking with an Application](#linking-with-an-application)**
 
-**<a href="#toc3-146">Demo</a>**
+**[Demo](#demo)**
 
-**<a href="#toc3-151">Bakery</a>**
+**[Bakery](#bakery)**
 
-**<a href="#toc3-180">API Summary</a>**
-*  <a href="#toc4-185">zlog - zlog actor</a>
-*  <a href="#toc4-290">zecho - Implements the echo algorithms</a>
-*  <a href="#toc4-515">zvector - Implements a dynamic vector clock</a>
-*  <a href="#toc4-727">bakery - Bakery with zlogger support</a>
+**[API Summary](#api-summary)**
+*  [zlog - zlog actor](#zlog---zlog-actor)
+*  [zecho - Implements the echo algorithms](#zecho---implements-the-echo-algorithms)
+*  [zvector - Implements a dynamic vector clock](#zvector---implements-a-dynamic-vector-clock)
+*  [bakery - Bakery with zlogger support](#bakery---bakery-with-zlogger-support)
 
-**<a href="#toc3-743">Hints to Contributors</a>**
+**[Hints to Contributors](#hints-to-contributors)**
 
-**<a href="#toc3-755">This Document</a>**
+**[This Document](#this-document)**
 
-<A name="toc2-11" title="Overview" />
 ## Overview
 
-<A name="toc3-14" title="Scope and Goals" />
 ### Scope and Goals
 
-<A name="toc3-17" title="Ownership and License" />
 ### Ownership and License
 
 The contributors are listed in AUTHORS. This project uses the MPL v2 license, see LICENSE.
@@ -52,10 +47,8 @@ Zlogger uses the [CLASS (C Language Style for Scalabilty)](http://rfc.zeromq.org
 To report an issue, use the [Zlogger issue tracker](https://zenon.cs.hs-rm.de/causality-logger/zlogger/issues) at
 gitlab.com.
 
-<A name="toc2-29" title="Using Zlogger" />
 ## Using Zlogger
 
-<A name="toc3-32" title="Building on Linux" />
 ### Building on Linux
 
 To start with, you need at least these packages:
@@ -127,7 +120,6 @@ similar, you don't clone a repo but unpack a tarball), including the libsodium
 
 ```
 
-<A name="toc3-104" title="Building on Windows" />
 ### Building on Windows
 
 To start with, you need MS Visual Studio (C/C++). The free community edition works well.
@@ -162,19 +154,16 @@ Test by running the `zlogger_selftest` command:
     zlogger\builds\msvc\vs2013\DebugDEXE\zlogger_selftest.exe
 ```
 
-<A name="toc3-139" title="Linking with an Application" />
 ### Linking with an Application
 
 Include `zlogger.h` in your application and link with libzlogger. Here is a typical gcc link command:
 
     gcc -lzlogger -lzyre -lczmq -lzmq myapp.c -o myapp
 
-<A name="toc3-146" title="Demo" />
 ### Demo
 
 The demo scripts are available in demo/ folder. Please refer to demo/README.md.
 
-<A name="toc3-151" title="Bakery" />
 ### Bakery
 
 At first you need to copy the rsyslog configuration file 1337-logger.conf into
@@ -203,12 +192,10 @@ graphviz installed on your system i.e.
 
     sudo apt-get install graphviz
 
-<A name="toc3-180" title="API Summary" />
 ### API Summary
 
 This is the API provided by Zlogger 0.x, in alphabetical order.
 
-<A name="toc4-185" title="zlog - zlog actor" />
 #### zlog - zlog actor
 
 zlog - zlog actor
@@ -313,7 +300,6 @@ This is the class self test code:
     /*zlog_order_log ("/var/log/vc.log", "ordered_vc1.log");*/
 ```
 
-<A name="toc4-290" title="zecho - Implements the echo algorithms" />
 #### zecho - Implements the echo algorithms
 
 zecho - Implements the echo algorithms which consist of two distinct waves.
@@ -538,7 +524,6 @@ This is the class self test code:
     
 ```
 
-<A name="toc4-515" title="zvector - Implements a dynamic vector clock" />
 #### zvector - Implements a dynamic vector clock
 
 zvector - Implements a dynamic vector clock
@@ -750,23 +735,22 @@ This is the class self test code:
     
 ```
 
-<A name="toc4-727" title="bakery - Bakery with zlogger support" />
 #### bakery - Bakery with zlogger support
 
 bakery - Bakery with zlogger support
 
-Please add @discuss section in ../src/bakery.c.
+Please add '@discuss' section in './../src/bakery.c'.
 
 This is the class interface:
 
-Please add @interface section in ../src/bakery.c.
+Please add '@interface' section in './../src/bakery.c'.
+Please add '@interface' section in './../src/bakery.c'.
 
 This is the class self test code:
 
-Please add @selftest section in ../src/bakery.c.
+Please add '@selftest' section in './../src/bakery.c'.
 
 
-<A name="toc3-743" title="Hints to Contributors" />
 ### Hints to Contributors
 
 Zlogger is a nice, neat library, and you may not immediately appreciate why. Read the CLASS style guide please, and write your code to make it indistinguishable from the rest of the code in the library. That is the only real criteria for good style: it's invisible.
@@ -778,7 +762,6 @@ Do read your code after you write it and ask, "Can I make this simpler?" We do u
 Before opening a pull request read our [contribution guidelines](https://zenon.cs.hs-rm.de/causality-logger/zlogger/blob/master/README.md).
 Thanks!
 
-<A name="toc3-755" title="This Document" />
 ### This Document
 
 _This documentation was generated from zlogger/README.txt using [Gitdown](https://github.com/zeromq/gitdown)_

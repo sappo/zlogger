@@ -6,7 +6,7 @@
 ########################################################################
 # Project setup
 ########################################################################
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.8)
 project(zlogger)
 enable_language(C)
 enable_testing()
@@ -15,6 +15,9 @@ set(SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 # Select flags
 SET(CMAKE_C_FLAGS_RELEASE "-O3")
+
+# Will be used to add flags to pkg-config useful when apps want to statically link
+set(pkg_config_libs_private "")
 
 ########################################################################
 # options
@@ -63,6 +66,13 @@ if (MSVC)
     set(MORE_LIBRARIES ws2_32 Rpcrt4 Iphlpapi)
 endif()
 
+# specific case of windows UWP
+if( "${CMAKE_SYSTEM_NAME}" STREQUAL "WindowsStore" AND "${CMAKE_SYSTEM_VERSION}" STREQUAL "10.0")
+  ADD_DEFINITIONS(-DZMQ_HAVE_WINDOWS_UWP)
+  ADD_DEFINITIONS(-D_WIN32_WINNT=_WIN32_WINNT_WIN10)
+endif()
+
+
 # required libraries for mingw
 if (MINGW)
     set(MORE_LIBRARIES -lws2_32 -lrpcrt4 -liphlpapi)
@@ -83,6 +93,7 @@ find_package(libzmq REQUIRED)
 IF (LIBZMQ_FOUND)
     include_directories(${LIBZMQ_INCLUDE_DIRS})
     list(APPEND MORE_LIBRARIES ${LIBZMQ_LIBRARIES})
+    set(pkg_config_libs_private "${pkg_config_libs_private} -lzmq")
 ELSE (LIBZMQ_FOUND)
     message( FATAL_ERROR "libzmq not found." )
 ENDIF (LIBZMQ_FOUND)
@@ -94,6 +105,7 @@ find_package(czmq REQUIRED)
 IF (CZMQ_FOUND)
     include_directories(${CZMQ_INCLUDE_DIRS})
     list(APPEND MORE_LIBRARIES ${CZMQ_LIBRARIES})
+    set(pkg_config_libs_private "${pkg_config_libs_private} -lczmq")
 ELSE (CZMQ_FOUND)
     message( FATAL_ERROR "czmq not found." )
 ENDIF (CZMQ_FOUND)
@@ -105,9 +117,20 @@ find_package(zyre REQUIRED)
 IF (ZYRE_FOUND)
     include_directories(${ZYRE_INCLUDE_DIRS})
     list(APPEND MORE_LIBRARIES ${ZYRE_LIBRARIES})
+    set(pkg_config_libs_private "${pkg_config_libs_private} -lzyre")
 ELSE (ZYRE_FOUND)
     message( FATAL_ERROR "zyre not found." )
 ENDIF (ZYRE_FOUND)
+
+########################################################################
+# version
+########################################################################
+set(ZLOG_VERSION_MAJOR 0)
+set(ZLOG_VERSION_MINOR 1)
+set(ZLOG_VERSION_PATCH 0)
+set(ZLOG_VERSION "${ZLOG_VERSION_MAJOR}.${ZLOG_VERSION_MINOR}.${ZLOG_VERSION_PATCH}")
+message(STATUS "Detected ZLOG Version - ${ZLOG_VERSION}")
+
 
 ########################################################################
 # includes
@@ -132,6 +155,8 @@ install(FILES ${zlog_headers} DESTINATION include)
 ########################################################################
 # library
 ########################################################################
+
+
 include_directories("${SOURCE_DIR}/src" "${SOURCE_DIR}/include")
 set (zlog_sources
 )
@@ -145,26 +170,97 @@ IF (ENABLE_DRAFTS)
     )
 ENDIF (ENABLE_DRAFTS)
 
-source_group("Source Files" FILES ${zlog_sources})
-if (NOT DEFINED BUILD_SHARED_LIBS)
-    SET(BUILD_SHARED_LIBS ON)
-endif()
-add_library(zlog ${zlog_sources})
-set_target_properties(zlog
-    PROPERTIES DEFINE_SYMBOL "LIBZLOG_EXPORTS"
-)
-set_target_properties(zlog
-    PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${SOURCE_DIR}/src"
-)
-target_link_libraries(zlog
-    ${ZEROMQ_LIBRARIES} ${MORE_LIBRARIES}
-)
+IF (ENABLE_DRAFTS)
+    list (APPEND zlog_sources
+        src/zlog_private_selftest.c
+    )
+ENDIF (ENABLE_DRAFTS)
 
-install(TARGETS zlog
+source_group("Source Files" FILES ${zlog_sources})
+
+
+option(ZLOG_BUILD_SHARED "Whether or not to build the shared object" ON)
+option(ZLOG_BUILD_STATIC "Whether or not to build the static archive" ON)
+
+if (NOT ZLOG_BUILD_SHARED AND NOT ZLOG_BUILD_STATIC)
+  message(FATAL_ERROR "Neither static nor shared library build enabled")
+endif()
+
+IF (NOT MSVC)
+  # avoid building everything twice for shared + static
+  # only on *nix, as Windows needs different preprocessor defines in static builds
+  add_library (zlog_objects OBJECT ${zlog_sources})
+  set_property(TARGET zlog_objects PROPERTY POSITION_INDEPENDENT_CODE ON)
+ENDIF (NOT MSVC)
+
+# shared
+if (ZLOG_BUILD_SHARED)
+  IF (MSVC)
+    add_library(zlog SHARED ${zlog_sources})
+  ELSE (MSVC)
+    add_library(zlog SHARED $<TARGET_OBJECTS:zlog_objects>)
+  ENDIF (MSVC)
+
+  set_target_properties (zlog PROPERTIES
+    PUBLIC_HEADER "${public_headers}"
+    DEFINE_SYMBOL "ZLOG_EXPORTS"
+    SOVERSION "0"
+    VERSION "${ZLOG_VERSION}"
+    COMPILE_DEFINITIONS "DLL_EXPORT"
+    OUTPUT_NAME "zlog"
+    PREFIX "lib"
+  )
+
+  target_link_libraries(zlog
+    ${ZEROMQ_LIBRARIES} ${MORE_LIBRARIES}
+  )
+
+  install(TARGETS zlog
     LIBRARY DESTINATION "lib${LIB_SUFFIX}" # .so file
     ARCHIVE DESTINATION "lib${LIB_SUFFIX}" # .lib file
-    RUNTIME DESTINATION bin              # .dll file
-)
+    RUNTIME DESTINATION bin                # .dll file
+  )
+
+  target_include_directories(zlog
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+  )
+endif()
+
+# static
+if (ZLOG_BUILD_STATIC)
+  IF (MSVC)
+    add_library(zlog-static STATIC ${zlog_sources})
+  ELSE (MSVC)
+    add_library(zlog-static STATIC $<TARGET_OBJECTS:objects>)
+  ENDIF (MSVC)
+
+  set_target_properties(zlog-static PROPERTIES
+    PUBLIC_HEADER "${public_headers}"
+    COMPILE_DEFINITIONS "ZLOG_STATIC"
+    OUTPUT_NAME "zlog"
+    PREFIX "lib"
+  )
+
+  target_link_libraries(zlog-static
+    ${ZEROMQ_LIBRARIES} ${MORE_LIBRARIES}
+  )
+
+  install(TARGETS zlog-static
+    LIBRARY DESTINATION "lib${LIB_SUFFIX}" # .so file
+    ARCHIVE DESTINATION "lib${LIB_SUFFIX}" # .lib file
+    RUNTIME DESTINATION bin                # .dll file
+  )
+
+  target_include_directories(zlog-static
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+  )
+  target_compile_definitions(zlog-static
+    PUBLIC ZLOG_STATIC
+  )
+
+endif()
+
+
 
 ########################################################################
 # pkgconfig
@@ -196,6 +292,7 @@ add_executable(
     bakery
     "${SOURCE_DIR}/src/bakery.c"
 )
+if (TARGET zlog)
 target_link_libraries(
     bakery
     zlog
@@ -204,14 +301,25 @@ target_link_libraries(
     ${ZYRE_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
-set_target_properties(
+endif()
+if (NOT TARGET zlog AND TARGET zlog-static)
+target_link_libraries(
     bakery
-    PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SOURCE_DIR}/src"
+    zlog-static
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${ZYRE_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+)
+endif()
+install(TARGETS bakery
+    RUNTIME DESTINATION bin
 )
 add_executable(
     zlog_selftest
     "${SOURCE_DIR}/src/zlog_selftest.c"
 )
+if (TARGET zlog)
 target_link_libraries(
     zlog_selftest
     zlog
@@ -220,10 +328,17 @@ target_link_libraries(
     ${ZYRE_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
-set_target_properties(
+endif()
+if (NOT TARGET zlog AND TARGET zlog-static)
+target_link_libraries(
     zlog_selftest
-    PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SOURCE_DIR}/src"
+    zlog-static
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${ZYRE_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
 )
+endif()
 
 ########################################################################
 # tests
@@ -233,8 +348,8 @@ set(TOTAL_TIMEOUT 600 CACHE STRING "Timout of the total testsuite")
 
 if(UNIX)
     find_program(MEMORYCHECK_COMMAND valgrind)
-    set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full --show-reachable=yes \
-                                     --error-exitcode=1 \
+    set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full --show-reachable=yes
+                                     --error-exitcode=1
                                      --suppressions=src/.valgrind.supp")
 endif()
 
@@ -250,6 +365,28 @@ IF (ENABLE_DRAFTS)
     )
 ENDIF (ENABLE_DRAFTS)
 
+IF (ENABLE_DRAFTS)
+    list (APPEND TEST_CLASSES
+    private_classes
+    )
+ENDIF (ENABLE_DRAFTS)
+
+
+add_custom_target(
+    copy-selftest-ro ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/selftest-ro ${CMAKE_BINARY_DIR}/src/selftest-ro
+)
+
+add_custom_target(
+    make-selftest-rw ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/src/selftest-rw
+)
+
+set_directory_properties(
+    PROPERTIES
+    ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_BINARY_DIR}/src/selftest-ro;${CMAKE_BINARY_DIR}/src/selftest-rw"
+)
+
 foreach(TEST_CLASS ${TEST_CLASSES})
     add_test(
         NAME ${TEST_CLASS}
@@ -258,6 +395,10 @@ foreach(TEST_CLASS ${TEST_CLASSES})
     set_tests_properties(
         ${TEST_CLASS}
         PROPERTIES TIMEOUT ${CLASSTEST_TIMEOUT}
+    )
+    set_tests_properties(
+        ${TEST_CLASS}
+        PROPERTIES DEPENDS "copy-selftest-ro;make-selftest-rw"
     )
 endforeach(TEST_CLASS)
 
@@ -304,6 +445,8 @@ message (STATUS "  C compiler        :   ${CMAKE_C_COMPILER}")
 message (STATUS "  Debug C flags     :   ${CMAKE_C_FLAGS_DEBUG} ${CMAKE_C_FLAGS}")
 message (STATUS "  Release C flags   :   ${CMAKE_C_FLAGS_RELEASE} ${CMAKE_C_FLAGS}")
 message (STATUS "  Build type        :   ${CMAKE_BUILD_TYPE}")
+message (STATUS "  Static build      :   ${ZLOG_BUILD_STATIC}")
+message (STATUS "  Shared build      :   ${ZLOG_BUILD_SHARED}")
 IF (ENABLE_DRAFTS)
 message (STATUS "  Draft API         :   Yes")
 ELSE (ENABLE_DRAFTS)

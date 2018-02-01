@@ -3,12 +3,13 @@ bakery(1)
 
 NAME
 ----
-bakery - Bakery with zlogger support
+bakery - Program for Bakery with zlogger support
 
 SYNOPSIS
 --------
 ----
-Please add @interface section in ../src/bakery.c.
+Please add '@interface' section in './../src/bakery.c'.
+Please add '@interface' section in './../src/bakery.c'.
 ----
 
 DESCRIPTION
@@ -16,11 +17,11 @@ DESCRIPTION
 
 bakery - Bakery with zlogger support
 
-Please add @discuss section in ../src/bakery.c.
+Please add '@discuss' section in './../src/bakery.c'.
 
 EXAMPLE
 -------
 .From bakery_test method
 ----
-Please add @selftest section in ../src/bakery.c.
+Please add '@selftest' section in './../src/bakery.c'.
 ----

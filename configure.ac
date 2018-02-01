@@ -31,13 +31,16 @@ AC_SUBST(PACKAGE_VERSION)
 #
 # Libtool -version-info (ABI version)
 #
-# Currently 2.0.1 ("stable"). Don't change this unless you
+# Currently 0:0:0 ("stable"). Don't change this unless you
 # know exactly what you're doing and have read and understand
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 #
 # libzlog -version-info
-LTVER="0:1:0"
+LTVER="0:0:0"
 AC_SUBST(LTVER)
+
+# building in a subdirectory?
+AM_CONDITIONAL([USING_VPATH], [test "x${srcdir}" != "x."])
 
 # Capture c flags
 ZLOG_ORIG_CFLAGS="${CFLAGS:-none}"
@@ -52,7 +55,11 @@ AC_PROG_SED
 AC_PROG_AWK
 PKG_PROG_PKG_CONFIG
 
+# Check endianess of the system
+AC_C_BIGENDIAN
+
 # Code coverage
+AC_MSG_CHECKING([whether to enable GCov])
 AC_ARG_WITH(gcov, [AS_HELP_STRING([--with-gcov=yes/no],
                   [With GCC Code Coverage reporting])],
                   [ZLOG_GCOV="$withval"])
@@ -64,151 +71,323 @@ if test "x${ZLOG_GCOV}" == "xyes"; then
         CFLAGS="${CFLAGS} ${ZLOG_ORIG_CFLAGS}"
     fi
     AM_CONDITIONAL(WITH_GCOV, true)
+    AC_MSG_RESULT([yes])
 else
     AM_CONDITIONAL(WITH_GCOV, false)
+    AC_MSG_RESULT([no])
 fi
 
+# Memory mis-use detection
+AC_MSG_CHECKING([whether to enable ASan])
+AC_ARG_ENABLE(address-sanitizer, [AS_HELP_STRING([--enable-address-sanitizer=yes/no],
+                  [Build with GCC Address Sanitizer instrumentation])],
+                  [ZLOG_ASAN="$enableval"])
+
+if test "x${ZLOG_ASAN}" == "xyes"; then
+    CFLAGS="${CFLAGS} -fsanitize=address"
+    CXXFLAGS="${CXXFLAGS} -fsanitize=address"
+
+    AM_CONDITIONAL(ENABLE_ASAN, true)
+    AC_MSG_RESULT([yes])
+else
+    AM_CONDITIONAL(ENABLE_ASAN, false)
+    AC_MSG_RESULT([no])
+fi
+
+# Set pkgconfigdir
+AC_ARG_WITH([pkgconfigdir], AS_HELP_STRING([--with-pkgconfigdir=PATH],
+    [Path to the pkgconfig directory [[LIBDIR/pkgconfig]]]),
+    [pkgconfigdir="$withval"], [pkgconfigdir='${libdir}/pkgconfig'])
+AC_SUBST([pkgconfigdir])
+
+# Use the provided pkgconfigdir not only to write our pkg-config data,
+# but also as an additional location to look for other packages metadata.
+AS_IF([test -n "${pkgconfigdir}" -a -d "${pkgconfigdir}"],
+    [AS_IF([test -z "${PKG_CONFIG_PATH}"],
+        [PKG_CONFIG_PATH="${pkgconfigdir}"],
+        [PKG_CONFIG_PATH="${pkgconfigdir}:${PKG_CONFIG_PATH}"])
+     export PKG_CONFIG_PATH
+    ])
+
+# Will be used to add flags to pkg-config useful when apps want to statically link
+PKGCFG_LIBS_PRIVATE=""
+
+# Archive user supplied flags
 PREVIOUS_CFLAGS="${CFLAGS}"
 PREVIOUS_LIBS="${LIBS}"
 
 
 was_libzmq_check_lib_detected=no
 
-PKG_CHECK_MODULES([libzmq], [libzmq >= 0.0.0],
+search_libzmq="yes"
+
+AC_ARG_WITH([libzmq],
     [
+        AS_HELP_STRING([--with-libzmq],
+        [yes or no. Optionally specify libzmq prefix (directory where its include/ and lib/ are located), but that is only used if pkgconfig metadata is not found first])
     ],
     [
-        AC_ARG_WITH([libzmq],
-            [
-                AS_HELP_STRING([--with-libzmq],
-                [Specify libzmq prefix])
-            ],
-            [search_libzmq="yes"],
-            [])
+        search_libzmq="yes"
+    ],
+    [
+        search_libzmq="yes"
+    ])
+AS_CASE([x"${with_libzmq}"],
+    [xyes], [search_libzmq="yes"],
+    [xno],  [search_libzmq="no"])
+
+dnl We do not abort right now, because the maintainer/developer may have
+dnl something particular in mind, e.g. to build just parts of a project.
+AS_IF([test x"${search_libzmq}" = xno],
+    [AC_MSG_WARN([Required dependency on libzmq was explicitly disabled during configuration by '--with-libzmq=no'; subsequent full build of zlogger may fail])])
+
+AS_IF([test x"${search_libzmq}" = xyes], [
+    # Archive previously detected and supplied flags
+    PRE_SEARCH_CFLAGS="${CFLAGS}"
+    PRE_SEARCH_LIBS="${LIBS}"
+
+    found_pkgconfig=""
+    found_linkname=""
+    PKG_CHECK_MODULES([libzmq], [libzmq >= 0.0.0],
+    [
+        PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE $libzmq_LIBS"
+        was_libzmq_check_lib_detected=pkgcfg
+        found_pkgconfig="libzmq"
+    ],
+    [
+        AC_MSG_NOTICE([Package libzmq not found; falling back to defined compilability tests])
 
         libzmq_synthetic_cflags=""
         libzmq_synthetic_libs="-lzmq"
 
-        if test "x$search_libzmq" = "xyes"; then
+        if test -n "${with_libzmq}" && test x"${with_libzmq}" != xyes && test x"${with_libzmq}" != xno; then
             if test -r "${with_libzmq}/include/zmq.h"; then
                 libzmq_synthetic_cflags="-I${with_libzmq}/include"
                 libzmq_synthetic_libs="-L${with_libzmq}/lib -lzmq"
             else
-                AC_MSG_ERROR([${with_libzmq}/include/zmq.h not found. Please check libzmq prefix])
+            AC_MSG_ERROR([Header file ${with_libzmq}/include/zmq.h was not found. Please check libzmq prefix])
             fi
+        else
+            AC_CHECK_HEADER([zmq.h], [],
+            AC_MSG_ERROR([Header file zmq.h was not found in default search paths])
+                )
         fi
-
 
         AC_CHECK_LIB([zmq], [zmq_init],
             [
+                was_libzmq_check_lib_detected=yes
+                PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE -lzmq"
+                found_linkname="zmq"
+            ],
+            [AC_MSG_ERROR([cannot link with -lzmq, install libzmq])])
+    ])
+
+dnl END of PKG_CHECK_MODULES and/or direct tests for libzmq
+    AS_CASE(["x${was_libzmq_check_lib_detected}"],
+        [xpkgcfg], [
+                AC_SUBST([pkgconfig_name_libzmq],[${found_pkgconfig}])
+                CFLAGS="${libzmq_CFLAGS} ${CFLAGS}"
+                LIBS="${libzmq_LIBS} ${LIBS}"
+            ],
+        [xyes], [
+                AC_SUBST([pkgconfig_name_libzmq],[${found_linkname}])
                 CFLAGS="${libzmq_synthetic_cflags} ${CFLAGS}"
                 LDFLAGS="${libzmq_synthetic_libs} ${LDFLAGS}"
                 LIBS="${libzmq_synthetic_libs} ${LIBS}"
 
                 AC_SUBST([libzmq_CFLAGS],[${libzmq_synthetic_cflags}])
                 AC_SUBST([libzmq_LIBS],[${libzmq_synthetic_libs}])
-                was_libzmq_check_lib_detected=yes
             ],
-            [AC_MSG_ERROR([cannot link with -lzmq, install libzmq])])
+        [xno], [
+                AC_SUBST([pkgconfig_name_libzmq],[libzmq])
+            AC_MSG_ERROR([Cannot find pkg-config metadata for libzmq 0.0.0 or higher])
     ])
+])
+dnl END of enabled attempts to search for libzmq
 
-if test "x$was_libzmq_check_lib_detected" = "xno"; then
-    CFLAGS="${libzmq_CFLAGS} ${CFLAGS}"
-    LIBS="${libzmq_LIBS} ${LIBS}"
-fi
 
 was_czmq_check_lib_detected=no
 
-PKG_CHECK_MODULES([czmq], [libczmq >= 0.0.0],
+search_libczmq="yes"
+
+AC_ARG_WITH([libczmq],
     [
+        AS_HELP_STRING([--with-libczmq],
+        [yes or no. Optionally specify libczmq prefix (directory where its include/ and lib/ are located), but that is only used if pkgconfig metadata is not found first])
     ],
     [
-        AC_ARG_WITH([libczmq],
-            [
-                AS_HELP_STRING([--with-libczmq],
-                [Specify libczmq prefix])
-            ],
-            [search_libczmq="yes"],
-            [])
+        search_libczmq="yes"
+    ],
+    [
+        search_libczmq="yes"
+    ])
+AS_CASE([x"${with_libczmq}"],
+    [xyes], [search_libczmq="yes"],
+    [xno],  [search_libczmq="no"])
+
+dnl We do not abort right now, because the maintainer/developer may have
+dnl something particular in mind, e.g. to build just parts of a project.
+AS_IF([test x"${search_libczmq}" = xno],
+    [AC_MSG_WARN([Required dependency on czmq was explicitly disabled during configuration by '--with-libczmq=no'; subsequent full build of zlogger may fail])])
+
+AS_IF([test x"${search_libczmq}" = xyes], [
+    # Archive previously detected and supplied flags
+    PRE_SEARCH_CFLAGS="${CFLAGS}"
+    PRE_SEARCH_LIBS="${LIBS}"
+
+    found_pkgconfig=""
+    found_linkname=""
+    PKG_CHECK_MODULES([czmq], [libczmq >= 0.0.0],
+    [
+        PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE $czmq_LIBS"
+        was_czmq_check_lib_detected=pkgcfg
+        found_pkgconfig="libczmq"
+    ],
+    [
+        AC_MSG_NOTICE([Package libczmq not found; falling back to defined compilability tests])
 
         czmq_synthetic_cflags=""
         czmq_synthetic_libs="-lczmq"
 
-        if test "x$search_libczmq" = "xyes"; then
+        if test -n "${with_libczmq}" && test x"${with_libczmq}" != xyes && test x"${with_libczmq}" != xno; then
             if test -r "${with_libczmq}/include/czmq.h"; then
                 czmq_synthetic_cflags="-I${with_libczmq}/include"
                 czmq_synthetic_libs="-L${with_libczmq}/lib -lczmq"
             else
-                AC_MSG_ERROR([${with_libczmq}/include/czmq.h not found. Please check libczmq prefix])
+            AC_MSG_ERROR([Header file ${with_libczmq}/include/czmq.h was not found. Please check libczmq prefix])
             fi
+        else
+            AC_CHECK_HEADER([czmq.h], [],
+            AC_MSG_ERROR([Header file czmq.h was not found in default search paths])
+                )
         fi
 
-
-        AC_CHECK_LIB([czmq], [zctx_test],
+        AC_CHECK_LIB([czmq], [zhashx_test],
             [
+                was_czmq_check_lib_detected=yes
+                PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE -lczmq"
+                found_linkname="czmq"
+            ],
+            [AC_MSG_ERROR([cannot link with -lczmq, install libczmq])])
+    ])
+
+dnl END of PKG_CHECK_MODULES and/or direct tests for libczmq
+    AS_CASE(["x${was_czmq_check_lib_detected}"],
+        [xpkgcfg], [
+                AC_SUBST([pkgconfig_name_libczmq],[${found_pkgconfig}])
+                CFLAGS="${czmq_CFLAGS} ${CFLAGS}"
+                LIBS="${czmq_LIBS} ${LIBS}"
+            ],
+        [xyes], [
+                AC_SUBST([pkgconfig_name_libczmq],[${found_linkname}])
                 CFLAGS="${czmq_synthetic_cflags} ${CFLAGS}"
                 LDFLAGS="${czmq_synthetic_libs} ${LDFLAGS}"
                 LIBS="${czmq_synthetic_libs} ${LIBS}"
 
                 AC_SUBST([czmq_CFLAGS],[${czmq_synthetic_cflags}])
                 AC_SUBST([czmq_LIBS],[${czmq_synthetic_libs}])
-                was_czmq_check_lib_detected=yes
             ],
-            [AC_MSG_ERROR([cannot link with -lczmq, install libczmq])])
+        [xno], [
+                AC_SUBST([pkgconfig_name_libczmq],[libczmq])
+            AC_MSG_ERROR([Cannot find pkg-config metadata for libczmq 0.0.0 or higher])
     ])
+])
+dnl END of enabled attempts to search for libczmq
 
-if test "x$was_czmq_check_lib_detected" = "xno"; then
-    CFLAGS="${czmq_CFLAGS} ${CFLAGS}"
-    LIBS="${czmq_LIBS} ${LIBS}"
-fi
 
 was_zyre_check_lib_detected=no
 
-PKG_CHECK_MODULES([zyre], [libzyre >= 0.0.0],
+search_libzyre="yes"
+
+AC_ARG_WITH([libzyre],
     [
+        AS_HELP_STRING([--with-libzyre],
+        [yes or no. Optionally specify libzyre prefix (directory where its include/ and lib/ are located), but that is only used if pkgconfig metadata is not found first])
     ],
     [
-        AC_ARG_WITH([libzyre],
-            [
-                AS_HELP_STRING([--with-libzyre],
-                [Specify libzyre prefix])
-            ],
-            [search_libzyre="yes"],
-            [])
+        search_libzyre="yes"
+    ],
+    [
+        search_libzyre="yes"
+    ])
+AS_CASE([x"${with_libzyre}"],
+    [xyes], [search_libzyre="yes"],
+    [xno],  [search_libzyre="no"])
+
+dnl We do not abort right now, because the maintainer/developer may have
+dnl something particular in mind, e.g. to build just parts of a project.
+AS_IF([test x"${search_libzyre}" = xno],
+    [AC_MSG_WARN([Required dependency on zyre was explicitly disabled during configuration by '--with-libzyre=no'; subsequent full build of zlogger may fail])])
+
+AS_IF([test x"${search_libzyre}" = xyes], [
+    # Archive previously detected and supplied flags
+    PRE_SEARCH_CFLAGS="${CFLAGS}"
+    PRE_SEARCH_LIBS="${LIBS}"
+
+    found_pkgconfig=""
+    found_linkname=""
+    PKG_CHECK_MODULES([zyre], [libzyre >= 0.0.0],
+    [
+        PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE $zyre_LIBS"
+        was_zyre_check_lib_detected=pkgcfg
+        found_pkgconfig="libzyre"
+    ],
+    [
+        AC_MSG_NOTICE([Package libzyre not found; falling back to defined compilability tests])
 
         zyre_synthetic_cflags=""
         zyre_synthetic_libs="-lzyre"
 
-        if test "x$search_libzyre" = "xyes"; then
+        if test -n "${with_libzyre}" && test x"${with_libzyre}" != xyes && test x"${with_libzyre}" != xno; then
             if test -r "${with_libzyre}/include/zyre.h"; then
                 zyre_synthetic_cflags="-I${with_libzyre}/include"
                 zyre_synthetic_libs="-L${with_libzyre}/lib -lzyre"
             else
-                AC_MSG_ERROR([${with_libzyre}/include/zyre.h not found. Please check libzyre prefix])
+            AC_MSG_ERROR([Header file ${with_libzyre}/include/zyre.h was not found. Please check libzyre prefix])
             fi
+        else
+            AC_CHECK_HEADER([zyre.h], [],
+            AC_MSG_ERROR([Header file zyre.h was not found in default search paths])
+                )
         fi
-
 
         AC_CHECK_LIB([zyre], [zyre_test],
             [
+                was_zyre_check_lib_detected=yes
+                PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE -lzyre"
+                found_linkname="zyre"
+            ],
+            [AC_MSG_ERROR([cannot link with -lzyre, install libzyre])])
+    ])
+
+dnl END of PKG_CHECK_MODULES and/or direct tests for libzyre
+    AS_CASE(["x${was_zyre_check_lib_detected}"],
+        [xpkgcfg], [
+                AC_SUBST([pkgconfig_name_libzyre],[${found_pkgconfig}])
+                CFLAGS="${zyre_CFLAGS} ${CFLAGS}"
+                LIBS="${zyre_LIBS} ${LIBS}"
+            ],
+        [xyes], [
+                AC_SUBST([pkgconfig_name_libzyre],[${found_linkname}])
                 CFLAGS="${zyre_synthetic_cflags} ${CFLAGS}"
                 LDFLAGS="${zyre_synthetic_libs} ${LDFLAGS}"
                 LIBS="${zyre_synthetic_libs} ${LIBS}"
 
                 AC_SUBST([zyre_CFLAGS],[${zyre_synthetic_cflags}])
                 AC_SUBST([zyre_LIBS],[${zyre_synthetic_libs}])
-                was_zyre_check_lib_detected=yes
             ],
-            [AC_MSG_ERROR([cannot link with -lzyre, install libzyre])])
+        [xno], [
+                AC_SUBST([pkgconfig_name_libzyre],[libzyre])
+            AC_MSG_ERROR([Cannot find pkg-config metadata for libzyre 0.0.0 or higher])
     ])
+])
+dnl END of enabled attempts to search for libzyre
 
-if test "x$was_zyre_check_lib_detected" = "xno"; then
-    CFLAGS="${zyre_CFLAGS} ${CFLAGS}"
-    LIBS="${zyre_LIBS} ${LIBS}"
-fi
 
 CFLAGS="${PREVIOUS_CFLAGS}"
 LIBS="${PREVIOUS_LIBS}"
+
+AC_SUBST(pkg_config_libs_private, $PKGCFG_LIBS_PRIVATE)
 
 # Platform specific checks
 zlogger_on_mingw32="no"
@@ -239,6 +418,9 @@ else
     AC_CHECK_PROG(zlogger_have_asciidoc, asciidoc, yes, no)
     AC_CHECK_PROG(zlogger_have_xmlto, xmlto, yes, no)
     if test "x$zlogger_have_asciidoc" = "xno" -o "x$zlogger_have_xmlto" = "xno"; then
+        if test "x$with_docs" = "xyes" ; then
+            AC_MSG_ERROR([Build with docs was explicitly requested, but tools are not available])
+        fi
         zlogger_build_doc="no"
         # Tarballs built with 'make dist' ship with prebuilt documentation.
         if ! test -f doc/zlogger.7; then
@@ -274,6 +456,8 @@ case "${host_os}" in
     *solaris*)
         # Define on Solaris to enable all library features
         CPPFLAGS="-D_PTHREADS $CPPFLAGS"
+        # Allow definitions of common OS-provided functions that are not in old standards
+        CPPFLAGS="-D__EXTENSIONS__ $CPPFLAGS"
         AC_DEFINE(ZLOG_HAVE_SOLARIS, 1, [Have Solaris OS])
         CFLAGS="${CFLAGS} -lsocket -lssp"
         ;;
@@ -309,6 +493,9 @@ case "${host_os}" in
         AC_DEFINE(ZLOG_HAVE_HPUX, 1, [Have HPUX OS])
         ;;
     *mingw32*)
+        # Disable format error due to incomplete ANSI C
+        CFLAGS="-Wno-error=format -Wno-unused-function -Wno-unused-variable -D_XOPEN_SOURCE $CFLAGS"
+        CPPFLAGS="-Wno-error=format -Wno-unused-function -Wno-unused-variable -D_XOPEN_SOURCE $CPPFLAGS"
         AC_DEFINE(ZLOG_HAVE_WINDOWS, 1, [Have Windows OS])
         AC_DEFINE(ZLOG_HAVE_MINGW32, 1, [Have MinGW32])
         AC_CHECK_HEADERS(windows.h)
@@ -318,7 +505,8 @@ case "${host_os}" in
     *mingw64*)
         # Define on MINGW64 to enable all libeary features
         # Disable format error due to incomplete ANSI C
-        CPPFLAGS="-Wno-error=format -D_XOPEN_SOURCE $CPPFLAGS"
+        CFLAGS="-Wno-error=format -Wno-unused-function -Wno-unused-variable -D_XOPEN_SOURCE $CFLAGS"
+        CPPFLAGS="-Wno-error=format -Wno-unused-function -Wno-unused-variable -D_XOPEN_SOURCE $CPPFLAGS"
         AC_DEFINE(ZLOG_HAVE_WINDOWS, 1, [Have Windows OS])
         AC_DEFINE(ZLOG_HAVE_MINGW32, 1, [Have MinGW32])
         AC_CHECK_HEADERS(windows.h)
@@ -382,6 +570,19 @@ AM_CONDITIONAL(ON_GNU, test "x$zlogger_on_gnu" = "xyes")
 AM_CONDITIONAL(INSTALL_MAN, test "x$zlogger_install_man" = "xyes")
 AM_CONDITIONAL(BUILD_DOC, test "x$zlogger_build_doc" = "xyes")
 
+AC_ARG_ENABLE([dist_cmakefiles],
+    AS_HELP_STRING([--enable-dist_cmakefiles],
+        [Distribute CMakeLists.txt and related files [default depends: on if present and not cross compiling]]),
+    [enable_dist_cmakefiles=$enableval],
+    [AC_MSG_CHECKING([for presence of CMake recipes])
+if test "x$cross_compiling" = "xyes"; then
+     enable_dist_cmakefiles=no
+else
+     AC_CHECK_FILE($srcdir/CMakeLists.txt, [enable_dist_cmakefiles=yes], [enable_dist_cmakefiles=no])
+fi
+     AC_MSG_RESULT([$enable_dist_cmakefiles])])
+AM_CONDITIONAL(ENABLE_DIST_CMAKEFILES, test "x$enable_dist_cmakefiles" = "xyes")
+
 # Check for bakery intent
 AC_ARG_ENABLE([bakery],
     AS_HELP_STRING([--enable-bakery],
@@ -406,27 +607,8 @@ AM_COND_IF([ENABLE_ZLOG_SELFTEST], [AC_MSG_NOTICE([ENABLE_ZLOG_SELFTEST defined]
 AC_TYPE_SIGNAL
 AC_CHECK_FUNCS(perror gettimeofday memset getifaddrs)
 
-# Set pkgconfigdir
-AC_ARG_WITH([pkgconfigdir], AS_HELP_STRING([--with-pkgconfigdir=PATH],
-    [Path to the pkgconfig directory [[LIBDIR/pkgconfig]]]),
-    [pkgconfigdir="$withval"], [pkgconfigdir='${libdir}/pkgconfig'])
-AC_SUBST([pkgconfigdir])
-
 
 # enable specific system integration features
-AC_ARG_WITH([systemd-units],
-    AS_HELP_STRING([--with-systemd-units],
-    [Build and install with systemd units integration [default=no]]),
-    [with_systemd_units=$withval],
-    [with_systemd_units=no])
-
-AM_CONDITIONAL([WITH_SYSTEMD_UNITS], [test x$with_systemd_units != xno])
-
-AM_COND_IF([WITH_SYSTEMD_UNITS],
-    [AC_DEFINE(WITH_SYSTEMD_UNITS, 1, [systemd units are going to be installed])
-    AC_SUBST(WITH_SYSTEMD_UNITS)],
-    [])
-
 #   Project has no stable classes so enable draft API by default
 enable_drafts=yes
 AM_CONDITIONAL([ENABLE_DRAFTS], [test x$enable_drafts != xno])
@@ -440,16 +622,38 @@ else
     AC_SUBST(pkg_config_defines, "")
 fi
 
+AC_ARG_ENABLE([Werror],
+    AS_HELP_STRING([--enable-Werror],
+        [Add -Wall -Werror to GCC/GXX arguments [default=no; default=auto if nothing specified]]),
+    [AS_IF([test -n "$enableval"], [enable_Werror=$enableval], [enable_Werror=auto])],
+    [enable_Werror=no])
+
+AS_IF([test "x$enable_Werror" = "xyes" || test "x$enable_Werror" = "xauto"],
+    [AS_IF([test -n "$CC"],[AS_IF([$CC --version 2>&1 | grep 'Free Software Foundation' > /dev/null],
+        [AC_MSG_NOTICE([Enabling pedantic errors for GNU C])
+         CFLAGS="$CFLAGS -Wall -Werror"],
+        [AC_MSG_NOTICE([Not enabling pedantic errors: compiler not supported by this recipe (not GNU C)])
+         AS_IF([test "x$enable_Werror" = "xyes"], [AC_MSG_ERROR([--enable-Werror=yes was requested and can not be satisfied for C: $CC])])
+        ])])
+     AS_IF([test -n "$CXX"],[AS_IF([$CXX --version 2>&1 | grep 'Free Software Foundation' > /dev/null],
+        [AC_MSG_NOTICE([Enabling pedantic errors for GNU C++])
+         CXXFLAGS="$CXXFLAGS -Wall -Werror"],
+        [AC_MSG_NOTICE([Not enabling pedantic errors: compiler not supported by this recipe (not GNU C++)])
+         AS_IF([test "x$enable_Werror" = "xyes"], [AC_MSG_ERROR([--enable-Werror=yes was requested and can not be satisfied for C++: $CXX])])
+        ])])
+     AS_IF([test -n "$CPP"],[AS_IF([$CPP --version 2>&1 | grep 'Free Software Foundation' > /dev/null],
+        [AC_MSG_NOTICE([Enabling pedantic errors for GNU CPP preprocessor])
+         CPPFLAGS="$CPPFLAGS -Wall -Werror"],
+        [AC_MSG_NOTICE([Not enabling pedantic errors: preprocessor not supported by this recipe (not GNU CPP)])
+         AS_IF([test "x$enable_Werror" = "xyes"], [AC_MSG_ERROR([--enable-Werror=yes was requested and can not be satisfied for CPP: $CPP])])
+        ])])
+])
+
 # Specify output files
 AC_CONFIG_FILES([Makefile
                  doc/Makefile
                  src/libzlog.pc
                  ])
-
-AM_COND_IF([WITH_SYSTEMD_UNITS],
-    [AC_CONFIG_FILES([
-    ])],
-    [])
 
 
 AC_OUTPUT
@@ -485,6 +689,8 @@ echo Package version............... : $PACKAGE-$VERSION
 echo
 echo C compiler.................... : $CC
 echo C compiler flags.............. : $CFLAGS
+echo C++ compiler.................. : $CXX
+echo C++ compiler flags............ : $CXXFLAGS
 echo Configure date................ : $BUILD_DATE
 echo Build architecture............ : $BUILD_ARCH
 echo Build docs.................... : $zlogger_build_doc
@@ -506,7 +712,7 @@ echo
 echo '##########################################################################'
 
 echo
-echo Configure complete! Now procced with:
+echo Configure complete! Now proceed with:
 echo "    - 'make'               compile the project"
 echo "    - 'make check'         run the project's selftest"
 echo "    - 'make install'       install the project to $prefix"
@@ -520,6 +726,8 @@ echo "                           (requires zproject and zproto)"
 echo "    - 'make debug'         run the project's selftest under gdb"
 echo "    - 'make memcheck'      run the project's selftest with valgrind to"
 echo "                           check for memory leaks"
+echo "    - 'make coverage'      generate project's selftest coverage report"
+echo "                           expects --with-gcov option for configure"
 echo
 ])
 
